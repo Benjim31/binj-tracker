@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BINJ TRACKER - R-Multiple Trade Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        .dashboard-card {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            box-shadow: 0 0 25px rgba(168, 85, 247, 0.08), inset 0 0 15px rgba(56, 189, 248, 0.03);
+            transition: all 0.3s ease;
+        }
+        .dashboard-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.15), inset 0 0 15px rgba(168, 85, 247, 0.05);
+        }
+
+        @keyframes orbDrift1 {
+            0%   { transform: translate(0px, 0px) scale(1); }
+            25%  { transform: translate(180px, 120px) scale(1.2); }
+            50%  { transform: translate(-100px, 200px) scale(0.85); }
+            75%  { transform: translate(-150px, -80px) scale(1.1); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+        @keyframes orbDrift2 {
+            0%   { transform: translate(0px, 0px) scale(1); }
+            25%  { transform: translate(-200px, -140px) scale(1.25); }
+            50%  { transform: translate(140px, -90px) scale(0.9); }
+            75%  { transform: translate(180px, 150px) scale(1.15); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+        @keyframes orbDrift3 {
+            0%   { transform: translate(0px, 0px) scale(1); }
+            33%  { transform: translate(220px, -180px) scale(1.3); }
+            66%  { transform: translate(-160px, 160px) scale(0.8); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+
+        .neon-container {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .neon-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.32;
+            will-change: transform;
+        }
+        .orb-1 { top: -5%; left: 10%; width: 450px; height: 450px; background: #a855f7; animation: orbDrift1 8s ease-in-out infinite; }
+        .orb-2 { bottom: -5%; right: 10%; width: 500px; height: 500px; background: #38bdf8; animation: orbDrift2 10s ease-in-out infinite; }
+        .orb-3 { top: 35%; right: 30%; width: 380px; height: 380px; background: #6366f1; animation: orbDrift3 12s ease-in-out infinite; }
+
+        input[type="date"] { color-scheme: dark; cursor: pointer; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; padding: 2px; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex antialiased selection:bg-purple-500 selection:text-white relative overflow-x-hidden">
+
+    <!-- AMBIENT ORBS -->
+    <div class="neon-container">
+        <div class="neon-orb orb-1"></div>
+        <div class="neon-orb orb-2"></div>
+        <div class="neon-orb orb-3"></div>
+    </div>
+
+    <!-- AUTHENTICATION OVERLAY MODAL -->
+    <div id="authModal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-8 space-y-6 shadow-2xl relative">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-sky-400 mx-auto flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <i class="ph-bold ph-chart-line-up text-white text-2xl"></i>
+                </div>
+                <h2 class="text-xl font-black uppercase tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-sky-400">
+                    BINJ TRACKER
+                </h2>
+                <p class="text-xs text-slate-400">Sign in or create an account to sync your trades across devices.</p>
+            </div>
+
+            <form onsubmit="tracker.handleAuthSubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Email Address</label>
+                    <input type="email" id="authEmail" required placeholder="trader@example.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Password</label>
+                    <input type="password" id="authPassword" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-purple-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button type="submit" onclick="tracker.authMode = 'login'" class="py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl shadow-lg shadow-purple-600/30 transition">Log In</button>
+                    <button type="submit" onclick="tracker.authMode = 'signup'" class="py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl transition">Sign Up</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="w-64 bg-slate-900/90 backdrop-blur-xl border-r border-slate-800/80 flex flex-col shrink-0 z-20">
+        <div class="p-6 border-b border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-sky-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <i class="ph-bold ph-chart-line-up text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-sm tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-sky-400">
+                        BINJ TRACKER
+                    </h1>
+                    <p id="userEmailBadge" class="text-[10px] text-slate-400 truncate max-w-[120px]">Not Logged In</p>
+                </div>
+            </div>
+            <button onclick="tracker.openSettingsModal()" class="text-slate-400 hover:text-purple-400 transition" title="Account & Settings">
+                <i class="ph-bold ph-gear text-lg"></i>
+            </button>
+        </div>
+
+        <div class="p-4">
+            <button onclick="tracker.openAddTradeModal()" class="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 transition-all">
+                <i class="ph-bold ph-plus text-base"></i> + Add Trade
+            </button>
+        </div>
+
+        <nav class="flex-1 px-4 space-y-1.5 text-xs font-semibold text-slate-400">
+            <button onclick="tracker.switchPage('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-4 py-3 bg-purple-600/15 text-purple-300 border border-purple-500/30 rounded-xl text-left transition shadow-sm">
+                <i class="ph-bold ph-squares-four text-base"></i> Dashboard
+            </button>
+            <button onclick="tracker.switchPage('log')" id="nav-log" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
+                <i class="ph-bold ph-list-bullets text-base"></i> Trade Log
+            </button>
+            <button onclick="tracker.switchPage('analytics')" id="nav-analytics" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
+                <i class="ph-bold ph-chart-pie-slice text-base"></i> Analytics
+            </button>
+            <button onclick="tracker.switchPage('calendar')" id="nav-calendar" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
+                <i class="ph-bold ph-calendar-blank text-base"></i> Trade Calendar
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+            <span>by <a href="https://x.com/traderbinj" target="_blank" class="text-purple-400 hover:underline">@traderbinj</a></span>
+            <button onclick="tracker.handleLogout()" class="text-rose-400 hover:underline font-semibold flex items-center gap-1"><i class="ph-bold ph-sign-out"></i> Log Out</button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT VIEW -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-y-auto z-10">
+        <header class="bg-slate-900/60 backdrop-blur-md border-b border-slate-800/80 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
+            <div class="flex items-center gap-4">
+                <h2 id="pageHeaderTitle" class="text-base font-bold text-slate-100">Performance Dashboard</h2>
+                <span class="text-xs px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono shadow-sm">Cloud Sync Active</span>
+            </div>
+
+            <div class="flex items-center gap-4" id="dashboardTfWrapper">
+                <div class="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-semibold shadow-inner">
+                    <button onclick="tracker.setTimeframe('days')" id="tf-days" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white transition shadow">Days</button>
+                    <button onclick="tracker.setTimeframe('weeks')" id="tf-weeks" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Weeks</button>
+                    <button onclick="tracker.setTimeframe('months')" id="tf-months" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Months</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- DASHBOARD -->
+        <div id="page-dashboard" class="p-8 space-y-8 max-w-7xl w-full mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="dashboard-card rounded-2xl p-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Total Net R Return</div>
+                    <div id="metricTotalR" class="text-3xl font-black font-mono text-emerald-400">+0.0R</div>
+                    <div id="metricTotalDollar" class="text-xs font-mono font-semibold mt-1 hidden">($0.00)</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Win Rate %</div>
+                    <div id="metricWinRate" class="text-3xl font-black font-mono text-sky-400">0%</div>
+                    <div class="text-[11px] text-slate-500 mt-2"><span id="metricWinsCount" class="text-emerald-400 font-bold">0</span> wins / <span id="metricLossesCount" class="text-rose-400 font-bold">0</span> losses</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Profit Factor (R)</div>
+                    <div id="metricProfitFactor" class="text-3xl font-black font-mono text-purple-400">0.00</div>
+                    <div class="text-[11px] text-slate-500 mt-2">Gross Wins / Gross Losses</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Total Trades Logged</div>
+                    <div id="metricTotalTrades" class="text-3xl font-black font-mono text-slate-100">0</div>
+                    <div class="text-[11px] text-slate-500 mt-2">Active tracker entries</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="dashboard-card lg:col-span-2 rounded-2xl p-6 flex flex-col">
+                    <h3 class="font-bold text-sm text-slate-100 mb-4">Cumulative R-Equity Curve</h3>
+                    <div class="flex-1 relative min-h-[300px]"><canvas id="equityCurveChart"></canvas></div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6 flex flex-col">
+                    <h3 class="font-bold text-sm text-slate-100 mb-1">Winning vs Losing Trades</h3>
+                    <div class="flex-1 relative flex items-center justify-center min-h-[220px]">
+                        <canvas id="winRateDoughnut"></canvas>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-2">
+                            <span class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Ratio</span>
+                            <div class="text-xl font-black font-mono mt-0.5">
+                                <span id="centerWinCount" class="text-emerald-400">0</span> : <span id="centerLossCount" class="text-rose-400">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dashboardCalendarContainer"></div>
+        </div>
+
+        <!-- TRADE LOG -->
+        <div id="page-log" class="hidden p-8 space-y-6 max-w-7xl w-full mx-auto">
+            <div id="tradeLogContainer" class="space-y-4"></div>
+        </div>
+
+        <!-- ANALYTICS -->
+        <div id="page-analytics" class="hidden p-8 space-y-8 max-w-7xl w-full mx-auto">
+            <div class="dashboard-card rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+                <span class="text-xs font-bold text-slate-200 uppercase">Filter Date Range:</span>
+                <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                    <button onclick="tracker.setAnalyticsDateRange('all')" id="an-tf-all" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white">All Time</button>
+                    <button onclick="tracker.setAnalyticsDateRange('week')" id="an-tf-week" class="px-3 py-1.5 rounded-lg text-slate-400">This Week</button>
+                    <button onclick="tracker.setAnalyticsDateRange('month')" id="an-tf-month" class="px-3 py-1.5 rounded-lg text-slate-400">This Month</button>
+                    <button onclick="tracker.setAnalyticsDateRange('year')" id="an-tf-year" class="px-3 py-1.5 rounded-lg text-slate-400">This Year</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 id="anaFilterTitle" class="font-bold text-xs text-slate-300 uppercase">Filtered Return</h4>
+                    <div id="anaFilterPrimaryReturn" class="text-2xl font-black font-mono text-emerald-400">+0.0R</div>
+                    <div id="anaFilterSecondaryReturn" class="text-xs text-slate-400 mt-1">0 trades</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-200 uppercase">Day Edge</h4>
+                    <div class="space-y-1 text-xs mt-2"><div id="anaBestDay" class="text-emerald-400 font-bold">N/A</div><div id="anaWorstDay" class="text-rose-400 font-bold">N/A</div></div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-200 uppercase">Asset Edge</h4>
+                    <div class="space-y-1 text-xs mt-2"><div id="anaBestAsset" class="text-emerald-400 font-bold">N/A</div><div id="anaWorstAsset" class="text-rose-400 font-bold">N/A</div></div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-200 uppercase">Session Edge</h4>
+                    <div class="space-y-1 text-xs mt-2"><div id="anaBestSession" class="text-emerald-400 font-bold">N/A</div><div id="anaWorstSession" class="text-rose-400 font-bold">N/A</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CALENDAR -->
+        <div id="page-calendar" class="hidden p-8 max-w-7xl w-full mx-auto">
+            <div id="calendarViewContainer"></div>
+        </div>
+    </main>
+
+    <!-- CALENDAR TEMPLATE -->
+    <template id="calendarTemplate">
+        <div class="dashboard-card rounded-2xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-bold text-base text-slate-100" id="calendarTitle">Month Year</h3>
+                <div class="flex gap-1">
+                    <button onclick="tracker.changeMonth(-1)" class="p-2 bg-slate-800 rounded-lg"><i class="ph-bold ph-caret-left"></i></button>
+                    <button onclick="tracker.changeMonth(1)" class="p-2 bg-slate-800 rounded-lg"><i class="ph-bold ph-caret-right"></i></button>
+                </div>
+            </div>
+            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 mb-2">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+            </div>
+            <div id="calendarGrid" class="grid grid-cols-7 gap-2"></div>
+        </div>
+    </template>
+
+    <!-- ADD TRADE MODAL -->
+    <div id="addTradeModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-slate-100">Add New Trade</h3>
+                <button onclick="tracker.closeAddTradeModal()" class="text-slate-400"><i class="ph-bold ph-x text-lg"></i></button>
+            </div>
+            <form onsubmit="tracker.handleTradeSubmit(event)" class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="date" id="tradeDate" required class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                    <input type="text" id="tradeR" placeholder="Return in R (+2.5 or -1)" required class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 font-mono">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <select id="tradeAsset" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                        <option value="NQ">NQ</option><option value="ES">ES</option><option value="MNQ">MNQ</option><option value="MES">MES</option>
+                    </select>
+                    <select id="tradeSession" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                        <option value="NY AM">NY AM</option><option value="NY PM">NY PM</option><option value="London">London</option><option value="Asia">Asia</option>
+                    </select>
+                </div>
+                <textarea id="tradeNotes" rows="3" placeholder="Trade Notes..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200"></textarea>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="tracker.closeAddTradeModal()" class="px-4 py-2 bg-slate-800 rounded-xl">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-purple-600 text-white font-bold rounded-xl">Save Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPT APPLICATION LOGIC -->
+    <script>
+        // 1. INITIALIZE SUPABASE CLIENT WITH YOUR EXACT CREDENTIALS
+        const SUPABASE_URL = 'https://hrfoxyigbibrzfbetzik.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_zfQNBqn6vUDKFynQSQj6NQ_HIUGBbXg';
+        
+        // Correct global client reference
+        const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+        class RTradeTracker {
+            constructor() {
+                this.user = null;
+                this.trades = [];
+                this.settings = { showCash: true, riskPerR: 500 };
+                this.currentPage = 'dashboard';
+                this.timeframe = 'days';
+                this.analyticsRange = 'all';
+                this.currentDate = new Date();
+                this.authMode = 'login';
+                
+                this.initAuth();
+            }
+
+            async initAuth() {
+                if (!supabaseClient) return;
+
+                const { data } = await supabaseClient.auth.getSession();
+                if (data && data.session) {
+                    this.user = data.session.user;
+                    document.getElementById('authModal').classList.add('hidden');
+                    document.getElementById('userEmailBadge').innerText = this.user.email;
+                    await this.fetchTradesFromSupabase();
+                } else {
+                    document.getElementById('authModal').classList.remove('hidden');
+                }
+
+                supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                    if (session) {
+                        this.user = session.user;
+                        document.getElementById('authModal').classList.add('hidden');
+                        document.getElementById('userEmailBadge').innerText = this.user.email;
+                        await this.fetchTradesFromSupabase();
+                    } else {
+                        this.user = null;
+                        this.trades = [];
+                        document.getElementById('authModal').classList.remove('hidden');
+                    }
+                });
+            }
+
+            async handleAuthSubmit(e) {
+                e.preventDefault();
+                const email = document.getElementById('authEmail').value;
+                const password = document.getElementById('authPassword').value;
+
+                if (this.authMode === 'login') {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) {
+                        alert('Login error: ' + error.message);
+                    } else {
+                        document.getElementById('authModal').classList.add('hidden');
+                    }
+                } else {
+                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) {
+                        alert('Sign up error: ' + error.message);
+                    } else if (data.user && !data.session) {
+                        alert('Account created! Try logging in now.');
+                    } else {
+                        document.getElementById('authModal').classList.add('hidden');
+                    }
+                }
+            }
+
+            async handleLogout() {
+                if (supabaseClient) await supabaseClient.auth.signOut();
+            }
+
+            async fetchTradesFromSupabase() {
+                if (!this.user || !supabaseClient) return;
+                const { data, error } = await supabaseClient
+                    .from('trades')
+                    .select('*')
+                    .order('date', { ascending: false });
+
+                if (error) console.error(error);
+                else {
+                    this.trades = data || [];
+                    this.renderPageStructure();
+                    this.renderDashboard();
+                }
+            }
+
+            async handleTradeSubmit(e) {
+                e.preventDefault();
+                const date = document.getElementById('tradeDate').value;
+                let rawR = document.getElementById('tradeR').value.replace('R','').replace('+','').trim();
+                let rVal = parseFloat(rawR);
+                const asset = document.getElementById('tradeAsset').value;
+                const session = document.getElementById('tradeSession').value;
+                const notes = document.getElementById('tradeNotes').value;
+
+                const newTrade = {
+                    user_id: this.user.id,
+                    date,
+                    r: rVal,
+                    asset,
+                    session,
+                    notes
+                };
+
+                const { data, error } = await supabaseClient.from('trades').insert([newTrade]).select();
+                if (error) alert(error.message);
+                else {
+                    this.closeAddTradeModal();
+                    await this.fetchTradesFromSupabase();
+                }
+            }
+
+            async deleteTrade(id) {
+                if (!supabaseClient) return;
+                const { error } = await supabaseClient.from('trades').delete().eq('id', id);
+                if (error) alert(error.message);
+                else await this.fetchTradesFromSupabase();
+            }
+
+            switchPage(page) {
+                this.currentPage = page;
+                ['dashboard', 'log', 'analytics', 'calendar'].forEach(p => {
+                    const navBtn = document.getElementById(`nav-${p}`);
+                    const pageEl = document.getElementById(`page-${p}`);
+                    if (p === page) pageEl.classList.remove('hidden');
+                    else pageEl.classList.add('hidden');
+                });
+                if (page === 'log') this.renderTradeLog();
+                else if (page === 'dashboard') this.renderDashboard();
+            }
+
+            renderPageStructure() {
+                const template = document.getElementById('calendarTemplate').content.cloneNode(true);
+                document.getElementById('dashboardCalendarContainer').innerHTML = '';
+                document.getElementById('dashboardCalendarContainer').appendChild(template);
+            }
+
+            renderDashboard() {
+                let totalR = 0, wins = 0, losses = 0;
+                this.trades.forEach(t => {
+                    totalR += t.r;
+                    if (t.r > 0) wins++; else if (t.r < 0) losses++;
+                });
+
+                document.getElementById('metricTotalR').innerText = `${totalR >= 0 ? '+' : ''}${totalR.toFixed(1)}R`;
+                document.getElementById('metricTotalTrades').innerText = this.trades.length;
+                document.getElementById('metricWinRate').innerText = `${this.trades.length ? ((wins/this.trades.length)*100).toFixed(0) : 0}%`;
+                document.getElementById('centerWinCount').innerText = wins;
+                document.getElementById('centerLossCount').innerText = losses;
+            }
+
+            renderTradeLog() {
+                const container = document.getElementById('tradeLogContainer');
+                container.innerHTML = '';
+                if (this.trades.length === 0) {
+                    container.innerHTML = `<div class="text-center py-12 text-slate-500">No trades logged yet.</div>`;
+                    return;
+                }
+                this.trades.forEach((t, i) => {
+                    container.innerHTML += `
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex justify-between items-center">
+                            <div>
+                                <span class="font-bold text-slate-200">${t.date}</span> — <span class="text-purple-400 font-mono">${t.asset} (${t.session})</span>
+                                <p class="text-xs text-slate-400 mt-1">${t.notes || 'No notes'}</p>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <span class="font-mono font-bold ${t.r >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${t.r >= 0 ? '+' : ''}${t.r}R</span>
+                                <button onclick="tracker.deleteTrade(${t.id})" class="text-slate-500 hover:text-rose-400"><i class="ph-bold ph-trash"></i></button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            openAddTradeModal() { document.getElementById('addTradeModal').classList.remove('hidden'); }
+            closeAddTradeModal() { document.getElementById('addTradeModal').classList.add('hidden'); }
+        }
+
+        const tracker = new RTradeTracker();
+    </script>
+</body>
+</html>
