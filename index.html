@@ -643,20 +643,28 @@
             getFilteredTradesForDashboard() {
                 if (this.trades.length === 0) return [];
                 const now = new Date();
-                const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth();
+                const currentDay = now.getDate();
+                const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
+
+                // Calculate start of current week (Sunday)
+                const startOfWeekDate = new Date(currentYear, currentMonth, currentDay - dayOfWeek);
+                startOfWeekDate.setHours(0,0,0,0);
 
                 return this.trades.filter(t => {
                     const parts = t.date.split('-');
-                    const tDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                    const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    tDate.setHours(0,0,0,0);
 
                     if (this.timeframe === 'days') {
-                        return tDate.getTime() === todayMidnight.getTime();
+                        const todayDate = new Date(currentYear, currentMonth, currentDay);
+                        todayDate.setHours(0,0,0,0);
+                        return tDate.getTime() === todayDate.getTime();
                     } else if (this.timeframe === 'weeks') {
-                        const startOfWeek = new Date(todayMidnight);
-                        startOfWeek.setDate(todayMidnight.getDate() - todayMidnight.getDay());
-                        return tDate >= startOfWeek && tDate <= now;
+                        return tDate >= startOfWeekDate && tDate <= now;
                     } else if (this.timeframe === 'months') {
-                        return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+                        return tDate.getFullYear() === currentYear && tDate.getMonth() === currentMonth;
                     }
                     return true;
                 });
@@ -860,27 +868,32 @@
 
                 let filtered = this.trades;
                 const now = new Date();
-                const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth();
+                const currentDay = now.getDate();
+                const dayOfWeek = now.getDay();
+
+                const startOfWeekDate = new Date(currentYear, currentMonth, currentDay - dayOfWeek);
+                startOfWeekDate.setHours(0,0,0,0);
 
                 if (this.analyticsRange === 'week') {
-                    const startOfWeek = new Date(todayMidnight);
-                    startOfWeek.setDate(todayMidnight.getDate() - todayMidnight.getDay());
                     filtered = this.trades.filter(t => {
                         const parts = t.date.split('-');
-                        const tDate = new Date(parts[0], parts[1] - 1, parts[2]);
-                        return tDate >= startOfWeek;
+                        const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        tDate.setHours(0,0,0,0);
+                        return tDate >= startOfWeekDate && tDate <= now;
                     });
                 } else if (this.analyticsRange === 'month') {
                     filtered = this.trades.filter(t => {
                         const parts = t.date.split('-');
-                        const tDate = new Date(parts[0], parts[1] - 1, parts[2]);
-                        return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+                        const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        return tDate.getFullYear() === currentYear && tDate.getMonth() === currentMonth;
                     });
                 } else if (this.analyticsRange === 'year') {
                     filtered = this.trades.filter(t => {
                         const parts = t.date.split('-');
-                        const tDate = new Date(parts[0], parts[1] - 1, parts[2]);
-                        return tDate.getFullYear() === now.getFullYear();
+                        const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        return tDate.getFullYear() === currentYear;
                     });
                 }
 
@@ -901,7 +914,7 @@
                 daysOfWeek.forEach(d => dayStats[d] = 0);
                 filtered.forEach(t => {
                     const parts = t.date.split('-');
-                    const tDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                    const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
                     const dName = daysOfWeek[tDate.getDay()];
                     dayStats[dName] += t.r;
                 });
