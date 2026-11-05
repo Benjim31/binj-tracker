@@ -75,7 +75,7 @@
         #appSidebar { position: relative; transition: width 0.2s ease; }
         #appSidebar.sidebar-collapsed { width: 4.75rem; }
         #sidebarToggle { position: fixed; top: auto; left: 15.1rem; right: auto; bottom: 4.75rem; z-index: 40; width: 1.85rem; height: 3.5rem; transform: none; border: 1px solid rgba(148, 163, 184, 0.45); border-left: 0; border-radius: 0 0.75rem 0.75rem 0; background: rgba(15, 23, 42, 0.90); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25); }
-        #appSidebar.sidebar-collapsed #sidebarToggle { left: 3.85rem; }
+        body.sidebar-collapsed #sidebarToggle { left: 3.85rem; }
         #sidebarToggle:hover { background: rgba(51, 65, 85, 0.98); }
         body.light-mode #sidebarToggle { background: rgba(255, 255, 255, 0.94); border-color: rgba(148, 163, 184, 0.65); color: #334155; }
         body.light-mode #sidebarToggle:hover { background: #e2e8f0; }
@@ -85,7 +85,7 @@
         #appSidebar.sidebar-collapsed .sidebar-text { display: none; }
         #appSidebar.sidebar-collapsed nav button { justify-content: center; padding-left: 0.75rem; padding-right: 0.75rem; }
         #appSidebar.sidebar-collapsed .sidebar-add-button { padding-left: 0.5rem; padding-right: 0.5rem; }
-        #appSidebar.sidebar-collapsed #sidebarFooter { justify-content: center; }
+        #appSidebar.sidebar-collapsed #sidebarFooter { flex-direction: column; justify-content: center; gap: 0.5rem; }
         #appSidebar.sidebar-collapsed #sidebarLogout { justify-content: center; }
 
         body.light-mode { background-color: #f1f5f9 !important; color: #0f172a !important; color-scheme: light; }
@@ -105,12 +105,19 @@
         body.light-mode [class~="bg-slate-800"] { background-color: #e2e8f0 !important; }
         body.light-mode [class~="bg-slate-800/60"] { background-color: rgba(226, 232, 240, 0.82) !important; }
         body.light-mode [class~="bg-purple-950/60"] { background-color: rgba(237, 233, 254, 0.9) !important; }
+        body.light-mode [class~="bg-emerald-950/30"] { background-color: rgba(209, 250, 229, 0.8) !important; }
+        body.light-mode [class~="bg-rose-950/30"] { background-color: rgba(255, 228, 230, 0.82) !important; }
         body.light-mode [class~="text-slate-100"] { color: #0f172a !important; }
         body.light-mode [class~="text-slate-200"] { color: #1e293b !important; }
         body.light-mode [class~="text-slate-300"] { color: #334155 !important; }
         body.light-mode [class~="text-slate-400"] { color: #475569 !important; }
         body.light-mode [class~="text-slate-500"] { color: #64748b !important; }
         body.light-mode [class~="text-slate-600"] { color: #64748b !important; }
+        body.light-mode [class~="text-emerald-400"] { color: #047857 !important; }
+        body.light-mode [class~="text-rose-400"] { color: #be123c !important; }
+        body.light-mode [class~="text-purple-300"] { color: #7e22ce !important; }
+        body.light-mode [class~="text-purple-400"] { color: #7c3aed !important; }
+        body.light-mode [class~="text-sky-400"] { color: #0369a1 !important; }
         body.light-mode [class~="border-slate-700"] { border-color: #cbd5e1 !important; }
         body.light-mode [class~="border-slate-800"], body.light-mode [class~="border-slate-800/80"] { border-color: #e2e8f0 !important; }
         body.light-mode [class~="border-slate-800/40"], body.light-mode [class~="border-slate-800/60"] { border-color: rgba(148, 163, 184, 0.4) !important; }
@@ -227,6 +234,9 @@
             <button id="sidebarLogout" onclick="tracker.handleLogout()" title="Log Out" aria-label="Log Out" class="text-rose-400 hover:underline font-semibold flex items-center gap-1"><i class="ph-bold ph-sign-out"></i><span class="sidebar-text">Log Out</span></button>
         </div>
     </aside>
+    <button id="sidebarToggle" type="button" onclick="tracker.toggleSidebar()" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar" class="flex items-center justify-center text-slate-200 hover:text-white transition">
+        <i class="ph-bold ph-caret-left text-lg"></i>
+    </button>
 
     <!-- MAIN CONTENT VIEW -->
     <main class="flex-1 flex flex-col min-w-0 overflow-y-auto z-10">
@@ -974,6 +984,7 @@
                 const toggle = document.getElementById('sidebarToggle');
                 if (!sidebar || !toggle) return;
                 const collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                document.body.classList.toggle('sidebar-collapsed', collapsed);
                 toggle.setAttribute('aria-expanded', String(!collapsed));
                 toggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
                 toggle.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
