@@ -213,8 +213,8 @@
             <button onclick="tracker.switchPage('analytics')" id="nav-analytics" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
                 <i class="ph-bold ph-chart-pie-slice text-base"></i> <span class="sidebar-text">Analytics</span>
             </button>
-            <button onclick="tracker.switchPage('calendar')" id="nav-calendar" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
-                <i class="ph-bold ph-calendar-blank text-base"></i> <span class="sidebar-text">Trade Calendar</span>
+            <button onclick="tracker.switchPage('goals')" id="nav-goals" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
+                <i class="ph-bold ph-target text-base"></i> <span class="sidebar-text">Goals &amp; Challenges</span>
             </button>
             <button onclick="tracker.switchPage('report')" id="nav-report" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
                 <i class="ph-bold ph-file-image text-base"></i> <span class="sidebar-text">Recap Report</span>
@@ -371,9 +371,24 @@
             </div>
         </div>
 
-        <!-- CALENDAR -->
-        <div id="page-calendar" class="hidden p-8 max-w-7xl w-full mx-auto">
-            <div id="calendarViewContainer"></div>
+        <!-- GOALS & CHALLENGES -->
+        <div id="page-goals" class="hidden p-8 max-w-7xl w-full mx-auto space-y-6">
+            <section class="dashboard-card rounded-2xl p-6 md:p-8">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <div><p class="text-xs uppercase tracking-widest text-purple-300 font-bold mb-2">Weekly practice</p><h3 class="text-xl font-bold text-slate-100">Goals &amp; Challenges</h3><p class="text-sm text-slate-400 mt-1">Build repeatable habits, then review how they affect your trading.</p></div>
+                    <span id="goalsWeekLabel" class="text-sm text-slate-300 bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-2"></span>
+                </div>
+                <div id="goalsList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                <form onsubmit="tracker.addGoal(event)" class="mt-6 p-4 rounded-xl border border-slate-800 bg-slate-950/30 flex flex-col sm:flex-row gap-3">
+                    <input id="newGoalTitle" type="text" maxlength="80" required placeholder="Add a weekly goal (e.g. Complete my pre-trade checklist)" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-slate-200">
+                    <select id="newGoalTarget" class="bg-slate-950 border border-slate-700 rounded-xl px-3 text-sm text-slate-200"><option value="3">3 days</option><option value="4">4 days</option><option value="5" selected>5 days</option></select>
+                    <button class="px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold">Add goal</button>
+                </form>
+            </section>
+            <section class="dashboard-card rounded-2xl p-6">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4"><div><h3 class="font-bold text-slate-100">Process and performance</h3><p class="text-sm text-slate-400 mt-1">Compare outcomes on trades where you marked that you followed your goal.</p></div><span id="goalTradeSummary" class="text-sm font-mono text-slate-300"></span></div>
+                <div id="goalTradeStats" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+            </section>
         </div>
 
         <!-- RECAP REPORT PAGE -->
@@ -589,6 +604,10 @@
                         <div class="flex justify-between"><span class="text-slate-400">Session:</span> <span id="replaySession" class="text-sky-400 font-bold"></span></div>
                         <div class="flex justify-between"><span class="text-slate-400">Return:</span> <span id="replayReturn" class="font-mono font-bold"></span></div>
                     </div>
+                    <label class="flex items-center gap-3 p-3 rounded-xl bg-purple-950/30 border border-purple-500/20 text-sm text-slate-200 cursor-pointer">
+                        <input id="replayGoalFollowed" type="checkbox" onchange="tracker.toggleTradeGoalFollowed()" class="accent-purple-500 w-4 h-4">
+                        <span><span class="font-semibold block">I followed my goal</span><span class="text-xs text-slate-400">Track discipline on this trade</span></span>
+                    </label>
                     <div>
                         <span class="text-slate-400 font-semibold block mb-1">Tags & Psychology</span>
                         <div id="replayTags" class="flex flex-wrap gap-1.5"></div>
@@ -948,6 +967,7 @@
                 this.equityChart = null;
                 this.doughnutChart = null;
                 this.selectedTagsForNewTrade = [];
+                this.goalFollowedTradeIds = this.loadGoalFollowedTrades();
                 
                 this.applySavedTheme();
                 this.initAuth();
@@ -1069,6 +1089,7 @@
                 const { data } = await supabaseClient.auth.getSession();
                 if (data && data.session) {
                     this.user = data.session.user;
+                    this.hydrateGoalState();
                     document.getElementById('authModal').classList.add('hidden');
                     this.updateUserBadge();
                     await this.fetchTradesFromSupabase();
@@ -1079,6 +1100,7 @@
                 supabaseClient.auth.onAuthStateChange(async (event, session) => {
                     if (session) {
                         this.user = session.user;
+                        this.hydrateGoalState();
                         document.getElementById('authModal').classList.add('hidden');
                         this.updateUserBadge();
                         await this.fetchTradesFromSupabase();
@@ -1374,9 +1396,99 @@
                 this.saveCanvas(canvas, `binj-recap_${R.fmt(start)}_to_${R.fmt(end)}.png`);
             }
 
+            loadGoalData() {
+                try {
+                    const saved = localStorage.getItem(this.goalStorageKey());
+                    if (saved) return JSON.parse(saved);
+                } catch (e) {}
+                return this.user?.user_metadata?.binj_goals || { goals: [], checks: {} };
+            }
+            async saveGoalData(data) {
+                try { localStorage.setItem(this.goalStorageKey(), JSON.stringify(data)); } catch (e) {}
+                if (!this.user || !supabaseClient) return;
+                const { data: result, error } = await supabaseClient.auth.updateUser({ data: { ...(this.user.user_metadata || {}), binj_goals: data } });
+                if (!error && result?.user) this.user = result.user;
+            }
+            goalStorageKey() { return 'binj_goals_' + (this.user?.id || 'guest'); }
+            goalFollowedStorageKey() { return 'binj_goal_followed_' + (this.user?.id || 'guest'); }
+            loadGoalFollowedTrades() {
+                if (this.user?.user_metadata?.binj_goal_followed_trade_ids) return this.user.user_metadata.binj_goal_followed_trade_ids.map(String);
+                try { return JSON.parse(localStorage.getItem(this.goalFollowedStorageKey()) || '[]').map(String); }
+                catch (e) { return []; }
+            }
+            async saveGoalFollowedTrades() {
+                try { localStorage.setItem(this.goalFollowedStorageKey(), JSON.stringify(this.goalFollowedTradeIds)); } catch (e) {}
+                if (!this.user || !supabaseClient) return;
+                const { data: result, error } = await supabaseClient.auth.updateUser({ data: { ...(this.user.user_metadata || {}), binj_goal_followed_trade_ids: this.goalFollowedTradeIds } });
+                if (!error && result?.user) this.user = result.user;
+            }
+            hydrateGoalState() {
+                this.goalFollowedTradeIds = this.loadGoalFollowedTrades();
+                try {
+                    if (this.user?.user_metadata?.binj_goals) localStorage.setItem(this.goalStorageKey(), JSON.stringify(this.user.user_metadata.binj_goals));
+                    if (this.user?.user_metadata?.binj_goal_followed_trade_ids) localStorage.setItem(this.goalFollowedStorageKey(), JSON.stringify(this.user.user_metadata.binj_goal_followed_trade_ids));
+                } catch (e) {}
+            }
+            toggleTradeGoalFollowed() {
+                const id = String(this.replayTradeId);
+                const checked = document.getElementById('replayGoalFollowed')?.checked;
+                this.goalFollowedTradeIds = this.goalFollowedTradeIds.filter(x => x !== id);
+                if (checked) this.goalFollowedTradeIds.push(id);
+                this.saveGoalFollowedTrades();
+                if (this.currentPage === 'goals') this.renderGoals();
+            }
+            addGoal(event) {
+                event.preventDefault();
+                const title = document.getElementById('newGoalTitle').value.trim();
+                if (!title) return;
+                const data = this.loadGoalData();
+                data.goals.push({ id: Date.now().toString(), title, target: Number(document.getElementById('newGoalTarget').value) || 5, created: new Date().toISOString().slice(0, 10) });
+                this.saveGoalData(data);
+                event.target.reset();
+                this.renderGoals();
+            }
+            toggleGoalDay(goalId, date) {
+                const data = this.loadGoalData();
+                data.checks ||= {};
+                data.checks[goalId] ||= {};
+                data.checks[goalId][date] = !data.checks[goalId][date];
+                this.saveGoalData(data);
+                this.renderGoals();
+            }
+            deleteGoal(goalId) {
+                const data = this.loadGoalData();
+                data.goals = data.goals.filter(g => g.id !== goalId);
+                delete data.checks[goalId];
+                this.saveGoalData(data);
+                this.renderGoals();
+            }
+            renderGoals() {
+                const data = this.loadGoalData();
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+                const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+                const fmt = d => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+                document.getElementById('goalsWeekLabel').innerText = 'Week of ' + fmt(monday) + ' – ' + fmt(friday);
+                const days = Array.from({length:5}, (_,i) => { const d=new Date(monday); d.setDate(monday.getDate()+i); return d; });
+                const dateKey = d => [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+                const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                const list = document.getElementById('goalsList');
+                if (!data.goals.length) list.innerHTML = '<div class="md:col-span-2 rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400">Add a weekly goal above to start building consistency.</div>';
+                else list.innerHTML = data.goals.map(g => {
+                    const checks = data.checks?.[g.id] || {};
+                    const count = days.filter(d => checks[dateKey(d)]).length;
+                    const pct = Math.min(100, Math.round(count / Math.max(1,g.target) * 100));
+                    return '<article class="rounded-xl border border-slate-800 bg-slate-950/30 p-5"><div class="flex justify-between gap-3"><div class="min-w-0"><h4 class="font-semibold text-slate-100 break-words">'+esc(g.title)+'</h4><p class="text-xs text-slate-400 mt-1">'+count+' / '+g.target+' days this week</p></div><button onclick="tracker.deleteGoal(\''+g.id+'\')" aria-label="Delete goal" title="Delete goal" class="text-slate-500 hover:text-rose-400"><i class="ph-bold ph-trash"></i></button></div><div class="h-2 bg-slate-800 rounded-full mt-4 overflow-hidden"><div class="h-full bg-gradient-to-r from-purple-500 to-emerald-400 rounded-full" style="width:'+pct+'%"></div></div><div class="grid grid-cols-5 gap-2 mt-4">'+days.map((d,i)=>{const key=dateKey(d); const done=!!checks[key]; return '<button onclick="tracker.toggleGoalDay(\''+g.id+'\',\''+key+'\')" class="rounded-lg py-2 text-center border '+(done?'border-emerald-500/40 bg-emerald-500/10 text-emerald-300':'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-purple-500/40')+'"><span class="block text-[10px]">'+['Mon','Tue','Wed','Thu','Fri'][i]+'</span><i class="ph-bold '+(done?'ph-check-circle':'ph-circle')+'"></i></button>';}).join('')+'</div></article>';
+                }).join('');
+                const marked = this.trades.filter(t => this.goalFollowedTradeIds.includes(String(t.id)));
+                const totalR = marked.reduce((sum,t) => sum + (Number(t.r)||0), 0);
+                document.getElementById('goalTradeSummary').innerText = marked.length + ' trades marked';
+                document.getElementById('goalTradeStats').innerHTML = '<div class="rounded-xl bg-slate-950/40 border border-slate-800 p-4"><p class="text-xs text-slate-400">Goal followed</p><p class="text-xl font-bold text-slate-100 mt-1">'+marked.length+'</p></div><div class="rounded-xl bg-slate-950/40 border border-slate-800 p-4"><p class="text-xs text-slate-400">Win rate</p><p class="text-xl font-bold text-slate-100 mt-1">'+(marked.length?Math.round(marked.filter(t=>Number(t.r)>0).length/marked.length*100):0)+'%</p></div><div class="rounded-xl bg-slate-950/40 border border-slate-800 p-4"><p class="text-xs text-slate-400">Net return</p><p class="text-xl font-mono font-bold '+(totalR>=0?'text-emerald-400':'text-rose-400')+' mt-1">'+(totalR>0?'+':'')+totalR.toFixed(1)+'R</p></div>';
+            }
+
             switchPage(page) {
                 this.currentPage = page;
-                ['dashboard', 'log', 'analytics', 'calendar', 'report'].forEach(p => {
+                ['dashboard', 'log', 'analytics', 'goals', 'report'].forEach(p => {
                     const navBtn = document.getElementById(`nav-${p}`);
                     const pageEl = document.getElementById(`page-${p}`);
                     if (p === page) {
@@ -1393,7 +1505,7 @@
                         }
                     }
                 });
-                const titles = { dashboard: 'Performance Dashboard', log: 'Trade Log', analytics: 'Analytics', calendar: 'Trade Calendar', report: 'Recap Report' };
+                const titles = { dashboard: 'Performance Dashboard', log: 'Trade Log', analytics: 'Analytics', goals: 'Goals & Challenges', report: 'Recap Report' };
                 const titleEl = document.getElementById('pageHeaderTitle');
                 if (titleEl) titleEl.innerText = titles[page] || '';
                 const tfWrap = document.getElementById('dashboardTfWrapper');
@@ -1405,7 +1517,7 @@
                     this.renderCalendar();
                     this.renderCharts();
                 }
-                else if (page === 'calendar') this.renderDedicatedCalendar();
+                else if (page === 'goals') this.renderGoals();
                 else if (page === 'analytics') this.renderAnalytics();
             }
 
@@ -2128,6 +2240,8 @@
                 }
 
                 document.getElementById('replayNotes').innerText = trade.notes || 'No strategy notes provided.';
+                const goalCheck = document.getElementById('replayGoalFollowed');
+                if (goalCheck) goalCheck.checked = this.goalFollowedTradeIds.includes(String(trade.id));
 
                 const tagsContainer = document.getElementById('replayTags');
                 tagsContainer.innerHTML = '';
