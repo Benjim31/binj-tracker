@@ -72,11 +72,13 @@
         input[type="date"] { color-scheme: dark; cursor: pointer; }
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; padding: 2px; }
 
-        #appSidebar { transition: width 0.2s ease; }
+        #appSidebar { position: relative; transition: width 0.2s ease; }
         #appSidebar.sidebar-collapsed { width: 4.75rem; }
+        #sidebarToggle { position: absolute; top: 50%; right: -0.9rem; z-index: 40; width: 1.85rem; height: 3.5rem; transform: translateY(-50%); border: 1px solid rgba(148, 163, 184, 0.45); border-left: 0; border-radius: 0 0.75rem 0.75rem 0; background: rgba(30, 41, 59, 0.98); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25); }
+        #sidebarToggle:hover { background: rgba(51, 65, 85, 0.98); }
         #appSidebar.sidebar-collapsed #sidebarHeader { flex-direction: column; justify-content: center; gap: 0.75rem; padding: 0.75rem; }
         #appSidebar.sidebar-collapsed #sidebarBrand { justify-content: center; }
-        #appSidebar.sidebar-collapsed #sidebarHeaderActions { flex-direction: column; }
+        #appSidebar.sidebar-collapsed #sidebarBrandText { display: none; }
         #appSidebar.sidebar-collapsed .sidebar-text { display: none; }
         #appSidebar.sidebar-collapsed nav button { justify-content: center; padding-left: 0.75rem; padding-right: 0.75rem; }
         #appSidebar.sidebar-collapsed .sidebar-add-button { padding-left: 0.5rem; padding-right: 0.5rem; }
@@ -134,22 +136,22 @@
 
     <!-- SIDEBAR NAVIGATION -->
     <aside id="appSidebar" class="w-64 bg-slate-900/90 backdrop-blur-xl border-r border-slate-800/80 flex flex-col shrink-0 z-20">
+        <button id="sidebarToggle" type="button" onclick="tracker.toggleSidebar()" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar" class="flex items-center justify-center text-slate-200 hover:text-white transition">
+            <i class="ph-bold ph-caret-left text-lg"></i>
+        </button>
         <div id="sidebarHeader" class="p-6 border-b border-slate-800/80 flex items-center justify-between">
             <div id="sidebarBrand" class="flex items-center gap-3">
                 <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-sky-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
                     <i class="ph-bold ph-chart-line-up text-white text-lg"></i>
                 </div>
-                <div>
-                    <h1 class="sidebar-text font-extrabold text-sm tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-sky-400">
+                <div id="sidebarBrandText" class="sidebar-text min-w-0">
+                    <h1 class="font-extrabold text-sm tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-sky-400">
                         BINJ TRACKER
                     </h1>
                     <p id="userEmailBadge" class="sidebar-text text-[10px] text-slate-400 truncate max-w-[120px]">Not Logged In</p>
                 </div>
             </div>
             <div id="sidebarHeaderActions" class="flex items-center gap-2">
-                <button id="sidebarToggle" type="button" onclick="tracker.toggleSidebar()" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
-                    <i class="ph-bold ph-caret-left text-lg"></i>
-                </button>
                 <button onclick="tracker.openSettingsModal()" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-purple-400 hover:bg-slate-800 transition" title="Account & Settings" aria-label="Account & Settings">
                     <i class="ph-bold ph-gear text-lg"></i>
                 </button>
