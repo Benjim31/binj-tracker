@@ -400,10 +400,10 @@
                     <button onclick="tracker.changeMonth(1)" class="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition"><i class="ph-bold ph-caret-right"></i></button>
                 </div>
             </div>
-            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 mb-2">
-                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+            <div class="grid grid-cols-8 gap-2 text-center text-xs font-bold text-slate-400 mb-2">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div class="text-right pr-2">Week R</div>
             </div>
-            <div id="calendarGrid" class="grid grid-cols-7 gap-2"></div>
+            <div id="calendarGrid" class="grid grid-cols-8 gap-2"></div>
         </div>
     </template>
 
@@ -1492,6 +1492,7 @@
                 grid.innerHTML = '';
                 const firstDayIndex = new Date(year, month, 1).getDay();
                 const lastDay = new Date(year, month + 1, 0).getDate();
+                let weekR = 0;
 
                 for (let i = 0; i < firstDayIndex; i++) {
                     grid.innerHTML += `<div class="bg-slate-900/40 rounded-xl min-h-[90px] p-2 border border-slate-800/40 opacity-30"></div>`;
@@ -1502,6 +1503,9 @@
                     const dayTrades = this.trades.filter(t => t.date === dateStr);
                     let dayR = 0;
                     dayTrades.forEach(t => dayR += t.r);
+                    weekR += dayR;
+                    const dayOfWeek = new Date(year, month, day).getDay();
+                    const closesWeek = dayOfWeek === 6 || day === lastDay;
 
                     let bgClass = "bg-slate-900/80 border-slate-800";
                     let textRColor = "text-slate-400";
@@ -1533,6 +1537,20 @@
                             </div>
                         </div>
                     `;
+
+                    if (closesWeek) {
+                        if (day === lastDay && dayOfWeek < 6) {
+                            for (let remainingDay = dayOfWeek + 1; remainingDay < 7; remainingDay++) {
+                                grid.innerHTML += `<div class="bg-slate-900/40 rounded-xl min-h-[90px] p-2 border border-slate-800/40 opacity-30"></div>`;
+                            }
+                        }
+                        const weekColor = weekR > 0 ? "text-emerald-400" : weekR < 0 ? "text-rose-400" : "text-slate-500";
+                        grid.innerHTML += `
+                            <div class="bg-slate-900/55 rounded-xl min-h-[90px] p-2 border border-slate-800/60 flex items-center justify-end">
+                                <span class="text-xs font-mono font-bold ${weekColor}">${weekR >= 0 ? "+" : ""}${weekR.toFixed(1)}R</span>
+                            </div>`;
+                        weekR = 0;
+                    }
                 }
             }
 
