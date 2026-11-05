@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BINJ TRACKER - R-Multiple Trade Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        .dashboard-card {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            box-shadow: 0 0 25px rgba(168, 85, 247, 0.08), inset 0 0 15px rgba(56, 189, 248, 0.03);
+            transition: all 0.3s ease;
+        }
+        .dashboard-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.15), inset 0 0 15px rgba(168, 85, 247, 0.05);
+        }
+
+        @keyframes orbDrift1 {
+            0%   { transform: translate(0px, 0px) scale(1); }
+            25%  { transform: translate(180px, 120px) scale(1.2); }
+            50%  { transform: translate(-100px, 200px) scale(0.85); }
+            75%  { transform: translate(-150px, -80px) scale(1.1); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+        @keyframes orbDrift2 {
+            0%   { transform: translate(0px, 0px) scale(1); }
+            25%  { transform: translate(-200px, -140px) scale(1.25); }
+            50%  { transform: translate(140px, -90px) scale(0.9); }
+            75%  { transform: translate(180px, 150px) scale(1.15); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+        @keyframes orbDrift3 {
+            0%   { transform: translate(0px, 0px) scale(1); }
+            33%  { transform: translate(220px, -180px) scale(1.3); }
+            66%  { transform: translate(-160px, 160px) scale(0.8); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+
+        .neon-container {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .neon-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.32;
+            will-change: transform;
+        }
+        .orb-1 { top: -5%; left: 10%; width: 450px; height: 450px; background: #a855f7; animation: orbDrift1 8s ease-in-out infinite; }
+        .orb-2 { bottom: -5%; right: 10%; width: 500px; height: 500px; background: #38bdf8; animation: orbDrift2 10s ease-in-out infinite; }
+        .orb-3 { top: 35%; right: 30%; width: 380px; height: 380px; background: #6366f1; animation: orbDrift3 12s ease-in-out infinite; }
+
+        input[type="date"] { color-scheme: dark; cursor: pointer; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; padding: 2px; }
+        /* Fonts for the recap image (embedded so the download looks identical everywhere) */
+        @font-face { font-family: 'RecapDisplay'; font-weight: 400; src: url(data:font/woff2;base64,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) format('woff2'); }
+        @font-face { font-family: 'RecapBody'; font-weight: 300; src: url(data:font/woff2;base64,d09GMgABAAAAABPUABAAAAAAJ4AAABN0AAO1wwAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbh2wcMAZgP1NUQVREAIE2EQgKulSscwE2AiQDgwwLgUgABCAFgRAHIAwHG8Meo6KWk1rWEPwzwRS4BfUXmjNGIWLzbjd1p6Edb06E/EBKhcge/C42qT/zaYQks/5Tm/6fgYGQuUNCfyO1pKZP3CEkoS112tfnQpY//Wqy86X53nflef7v++1z3g8wbX1tEExs0hmHESihVkDNIGkrnUXT7vA4Z/9mCjO8UE9TTdLXhoombakY0mJafCqwD58DpgoTs3Li2N9NlFPYZ+ecTM65/53L/DfX2kM/QFDEuSELQ2pGHdIAqQRp/2/NtLMFAAdAthKFqiJj/s5kk5mdzGt2c4V0371NeVPc3J3YlpNSSgAKOClhemXHDkmYCkWqr7bC1wtAYWXVTHeSM2DHKKNu4MU2tv8DHj8Sb+4hzhHOqF+ZEQwgOekVDDN0f/mA0GIuZX3jdhuxw8EThxDD4dgYDOxg9NghGAgxBqdAZOh5iTCistTn4mIcbXrA+F/Ium3jAgTw25fqLya64gPKG8fwZdQgBSl+YdxGt+UNUWVi2pJ5qKnZkcIDc8djEOj9oYwwxMcHUKXshLJplULdbB6EQEzEPNjAghD46+LUW9IUXa5t3NYBS0Wgp3TCgbKKX22TBaIUQ9uohEgXYBz7A5NSdUmZOaAmdfnY8eXzh+blpr4ZmggDkUyWCklpVarVqFUnI6tBk2at2nTo1KVbjxlmmm2OueaZb4ElVlhple122GkXR46rYAijGEwGtZACBIQAk1gWAuBZmYzIoi4gkO8PMOq6EzEqNyD2SYzrGFMJlRtVlyMihkUtixy1FtzmBJObbdcAiuByMCmL6oGmBNztkwQjl6oTxcWyqpvKFBNM41BujhWP6ihOS+uEZiMkmRwVFUlR9nz5HjOp6RM7x0Ynkd35ObMxYDxtUxHTQLluHsA2uG22jbmZyWk9BOa4E0ddwHtomFdz6f+VIB2yZCTqB3trB6ChMGMYQEKhlm6nwfiJ5uQ/bcOwOgxn0Y0F1iOvPKMkk4WRe65y4RAMi3IPgDF1dOpZllitaMA5l+aJhmqpZ2ow21JreAadn1d6QzpMv+tR+D/xx1k/LgCTAMwGLAWsBQAAY9thK982Rdutt8Eunj3W2C1nr3369OrnKNjItcmA1YZslrfFIIaNfxEHMMMA4BMA94NxC3IZAAAWPG0bCpHhRqioYBCqUH0RFaFQXEYo2hOCfURFUqOBLDx6BfuFFojhhFgSoXoUDOuMXMxo4lXcyd3OE1RyXReGleAJDwim5hmpcVBGjYYSsKwGs3XyyoRVkQOSy53OvC05E9ylM/d48ip+wtLrazJmm5XWr7AyfOIE4bGYYXR1GY1k5eRUZoD8STMFWDZuLVvF70Akwvn8yAzumnOlV0g6tH+cvLRHU6YJJcOgBK/DFqFKRrhAqOtIo6RI7z6vdFB+O0gevGNQZb0phEIinw+0wGMbtPweOMtJ62NGkGPyz7ANA5lMal5SWDEe62M9ArpPZ/JCqla0rXrGgAbOMO+cFLCYl3zL7rn5gbk5ubcXQRM8fL+qj+dt5sgojQUDHDmxX/D6qH98fy+d5qciHU9qYlJQmFiM3ZDileiYjc+WL6cYjNUYcww7P0pjXoGKRS5so1jDXfw8OYt2apHNZo1PKJn0lPDhbLhHVYdD4YdAsm7IBwoHmFEehpj0lZAoHIYqlEaJQB3uFxOT4nB/r/r8vpp2Ml8UhTwVwz0sswqpnm+Om0xOSrd0nqOnSB3c8hhTTkSIH7LSbOyp5w7/pa4PB0G0rZc+74fJ3RU6DZce5ejq+/Rj4cz5CYbrMS/V8ER4uQK47fm//65OkXEOAZwTGh1XOhoxO5Y+173rZuceS4GEeasbMnFOgpg765bD2+zkdcRJK4WPrikHnWmUMXLxTbyYuhPzYXEvmffP7scglb6kHCSz4UmhRy96ONX2R49F4NZW4c0HN8UvmevPF9jP6mE/0xTsAhVdhB5/SmKX0pgKdBBx1Cv28RDCg+SeQNf9ZOGxWh1N8GBONmeeNDHAV8ekUMibdcutKkvPdfXWPYlrb18VwOCnWJ16gMrLzAvOhjteWar8/47CDyYryZwg5Kky+zoZfXKcNHfUcfsuFYiuY++hcGOy4Il8UQiEGj+wc8KxyXUo5wYL3rpS9WBkZ+sS+wtbYoklNlKGPuvufEYnde/ds8qGEbT8tv08Cs/fcyeNH9Hmwg16Pv9TBQO5G6aIsL+I1UFsLB+O67BCBgpAmljwO8/FJpP5Jz/5G7yeanHt0xt/QnhYzdn8Y9PiLlLPte4+SoX6B1TBtpey5IOTjsvBo2aKn6797e5kQbLeG2tCq7NtTnlP8grEc7ICWx4mky4x4cZZrMrPB/lHqQM/dvL0j4nutRE/znRf1hGgSFe/dJ7uJyrfnyOE55koeaH+iwefdgpfOOTlGxSmnq5McMIzhxuM5HnoKgceuVQIER87Oc1IHoyV78915JFTDZN5k4lAYCdy1eTLXnLTE/InPNi0d/U0Vh/mj95jcR4vl8MGm12jST9PXlUleByb3Em72rVzHY5wu9JOndqc65DrbuT5sWsBHpuBNTnJxuPr+gXyen1kOsoIh9xPPZNmFNY9e4poMdjmFp33J2j/wdDDKz2Wss+l8/3VofChIC2L6B2RajYUvzbTxHoJ7e0PfVDy27Gw6a6LF3qK0152pEnfE/eeVKP2cJIG9jzUyctLsrfZsfS959idfElmzpP09uzi0S9eVns3VyEVMuYd3jAbwCAbztAJH8J5EDtD01t2z3qzCUzWDVGon/PsovhZTTkVujVU/YpTh5h1KCdscm2CHTuOE+vqyVkn//cZDMfv3T+2dkRZt28nOmPdEh67dYv2TsGuNrB61u63XhRY+135DGp/cqvbVf63Hj6Cj/QVIAfULZmnyWITtDwZd2TzDLs6DtEVIk2WBeNbjRJ/lGgFcwn3WdQNHhTRXo6iOruI9hnV6EIqFq0FobxsZ3O9y4v7Z1HCdvu1cr7bvhLmFMgbPR55Y07BSmh3l/OvOdrNIv8swlvvdjaDtHAH2fFGOLQnGGirrAy07QmGDpAHTFWo0yWooShBjdNVhZoOkGBeDsxJz4E5ARu0JbDyQcHcZjmU56AQTeDX36E9gr/MaBZtyUM0aQ1uV0tWtqu50Z2ascqGzv8izVzFMTnrYH5WoDDKpNO9TJVRIlptI8Hc4ifwySVuR3LH+C51fxhcVPaqrmXIiDiOGYlHf1cMGT9EGb83OQgbTzHOt5oXyG0ynJmQ1QIOoa+euCo1KOl7FB0LliwJysOOGaWPyZQZxY9BWV6mo6XBk57uM9hbMoP2Viy+o1UVcMsb8grrFE4nQIETcuOukfqEWtDkLvC4nAVedxNsMocwTZ7RpMkJ4eamGFagTi6ytz810O3+2k0PuS/XdpAdmxoVfo6UIggJncpWNOKNdJVUl2M06bKqZHQjyOzqAbq0HFwnsscVJ1pE0iSz7MvuBU5xEJGZ9DrpvcZTf94t8KHJygyhzEVIZCuNiX11KfzP5WqXgyZsQswGpjTfaCFbbsDjwBPug4xAeypboUhltzMCsI/sSw+W+P3BkvQ+oCt9HVigxwHhpQ/y7uZ1mXUjHz3MvoFcbx24Gj6ecCTB3OUamG3u0F3XmT+ffdsF7oc7K9+v1D9vSyKZ3+0F3OaWvc3fwXXp5XsOAq2cv5oQoSsqmtWy2zhT4st1U/jbNiYicLPkFmVYjliMHIRp/XFERFdZAZt19+yVmQZoldbbWVCXyt0Mxj2bDCfDlkGnuqpUpVcH9Vi1hcZqgnq1vlSlrpbbtbIMrxgXOnFJBkl6eMcR4l6xLAMEBpMtuVQM8l71bzHZAmyCqtTpq60WfQ0SU0SAlWLaPPCKB1OxnWTjR02eDCd38Bya6lKVTpuhx2poC1YNn1Y3PqKmCjq00gyfGBM5ogF9Ioyw+hoD/ppgCSVX7/nKI1EQDpkgqFGj6Q6pXGxBBXbZeOPM/JBk/WhzLAVD+SqDqURLVlutypoCHRD14E/wCS+6Khsnp4TpcWZZHVya9GVX7PSfQUajyC7EDeoSha7K+x58z4ylOxERloIglMgwKtfGmWeexVKCZElAHy8fyOv8KyKAUiXLYeJjmB0XppPTEdmHiIowAc/eCCci0hIRSUdGpE/8shf2AvNM7lIajGozP44iutc2TEoIQ7G0aBqclPh2X9ys+2D04aGzf2B4/Ob3U8zwPXlzkeXFxwMeCUx0XhdJnSR+4HdCYlFE5sFeGIP+O8zGJEatoE4Hi/Ib3O3MTpG7SFZhuE0g+wBJlsPJH7Toaqp0FOVBe1isumoMkAIt84tnsFOANGD7LVj16Ql4ouPdFbP9nv8UnoAtg4vgmW/ogb1w14bu4Zoo7kFWOhmDJDWxp58C7oadbUetLMyc6tAiRf3um7PuxbP62dK9/5y8efMpwv2mBEGL3/zrafLLBL5QyLXHgvE9eDdet78G1oCG41wo9DpzU6BzZPCEAWw0GNVz/7krpNm1WD5pu/S8uW5jnRxHvaJ0fX1j3YoSYO+pv8o6tPu+OPGDtvV9qlUYJQvO9qgPNc071qy/2bZooho496j3bMHlr+OuxkFpnil2DpZmkYoltJRAbsIBhkRsUU6lsVxzsDbf4fCgseXmrwZkBA6g/yE/eCwHUV/A6uGxS5UlKmY0LfTwSLpYD+c6SS2SZcfkyJrsGXGsFFMl+LNAXyrWeuWY2J8u16oCUsxPKtRup0F05Adu0qFnl9mM9YYCmTJDRQjsFmkgSsplm6aXjeeL+EYrFyPsXL4RTUYZ1v/6GGDW2jFzGifVjqrfMuEBsmMW+GeQVpTlqtRCa8JCza9M3JGz8O+tX/Jwp1jsVWjEaT6xUmxj2kcO2fXmTJ4Wz2AYNdwsEOonxKk+jMTdUkkqVIpTvRiEBB5/IOK5WZPgFVnVleUaig5p9LpYZUm+dQ6WSETFrSeeKUFS80aqWZ0bHgD+KCTByDDHIAgp4+lAMMyTKlMoAHYVFl78JT5yKJ6HVL/LZL5b7ZSgDFuZM1EmAy0zJyph2bY44lAUdAtsVrGYtiIvIGhQLBNYvgITMLAkQedTQuz34STmkUn8UClO88ogBGDkfNsV0tBU+QlXvOS9BLy/E+8Elv5MPFPiD+FDYPL9yZo5yj9W11udmrkyxQL8df1qSzEfuD4ewwpe8hrNQfPhqIyzLAA7++biR745gs8FjaeQ63h0LdrJYkjFCb1txD3VR+WC0Meqe3h7b4JYymB1CW6xxpkoL2Mqw0ul9CzQahPcZJNyteNlHgcEwUd5ibZC7Bto0fEmeW75+Kt2vNk08ZOJDaJ+JLJfVB/RNan+5A3yWbz8oSj5W/xkeFSbHJ78TZyiL07ZD9ioiGe1oFIZjWopkZhnKSWTWtB3iO+Ttgyz2ENbkhK3DrFZw1vxZS2sRtsHYYLDgaYwzuE6Odq7GE32jXDKIK9oENzzXTCcv0yQpxds2Vq+5xrp1g50YULPz62tVWNvMdtUUBF9yCLL7mSAfeX5wFX7h9cojMyowdi84I3my5RoaTvrYHjyX0jbx3I4YjSiAwB0Pi9w9i8h4ciV6COnnENGrTlYrNQElaJEe8jFkJHuhNLiU6ddhFqewuPTA9NKCTsXjhuVqvA2MDW8Lpxs/0xgLDXtG+wb8MoA+SkfMhlnG5gKvu0KU+KKxHnWBzypg5DmGYTxKbmoME1G5h6gSpzbNvkqA7WszsU9VXGm4EoLtTrokK0K5i6HTiokoT3sIgUlCpyImZVWO3XsyNGC5wTvlzH0+E2JCX0VrGyjVjDPl71Y4U1foy6rVK4HtzcVbNIvOnNuaqdoqYLTWxuP0I5L6uVbR2RNYo02vVisoqoV2UFv1YIWwlnk9+ZhSqmDJTJKxCt7zOzz3CyXPpbPoWihnEjhISYR7/tzwPj/j+HHH9/rI/uAsX0QH8yBE+wY9eh5+M9jBpaB4Jth7KGNeEG0Yq2j1Kh1+LrGFz2XodUvUSkCKOHAJGzj7KGTqxyCRAz9vJ8gbBK5O/E7njEzF2qsmbgoSEqSTPpPuve7+bFC7ouwUPzhcjDc2vymMuTn/3Dgy1nt9J21RuNuNFfGHv6+ujup5qWX782VBmOxuS2rsz6y6bI5qRg6MmntnZeEKWTfnN/2Yfu9uGhq1bibP2IA9fkV/fRdvyC+/M+Y1D8B+LrUeBYA/qg4Z063jLjpnYkA6BQAwOAzfU19D6Gf8X2kOd/h/A1sDZQrRJtk92k93aFlUuz8qE3qGF2I4xvs9cN0S6PQ8sY6NNfsvgCzYmwCpBialKtysLwv1n7s4tamz0Ys6WktTtGMinyiqVJb8zMMtGeYEOE9JvSHXf6k8/vpS7nbVl+BdYz93dqmnU7CkdmRG7X4FtGIPCr7HN7rytyE54W68p6K0piZKNdmqXKtrEZPhusoZm4noKFRlik8DnHwFbT+auN0zpdOjWLZbBKMlE1EZGWVs+pFcz+tKqNh57XwCFbWh8PR8Im0W50eleajjNb23cQvxPOLuP+NTMovBj2so26saeCzh6H1mJNhS7/KhhyCM0vlhxVpM2GcM+l2UrFZFIwBWAVFjFETA6RURQ1CU8U6Us+1ZQiLbXXYcSfsNSpw0gGDjnHriBMC407Yfse2gA0G4RkYtnefHTTzEPWb3JnN5aR9LdNNd/xqAAAA) format('woff2'); }
+        @font-face { font-family: 'RecapBody'; font-weight: 400; src: url(data:font/woff2;base64,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) format('woff2'); }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex antialiased selection:bg-purple-500 selection:text-white relative overflow-x-hidden">
+
+    <!-- AMBIENT ORBS -->
+    <div class="neon-container">
+        <div class="neon-orb orb-1"></div>
+        <div class="neon-orb orb-2"></div>
+        <div class="neon-orb orb-3"></div>
+    </div>
+
+    <!-- AUTHENTICATION OVERLAY MODAL -->
+    <div id="authModal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-8 space-y-6 shadow-2xl relative">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-sky-400 mx-auto flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <i class="ph-bold ph-chart-line-up text-white text-2xl"></i>
+                </div>
+                <h2 class="text-xl font-black uppercase tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-sky-400">
+                    BINJ TRACKER
+                </h2>
+                <p class="text-xs text-slate-400">Sign in or create an account to sync your trades across devices.</p>
+            </div>
+
+            <form onsubmit="tracker.handleAuthSubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Your Name <span class="text-slate-500 font-normal">(required for Sign Up)</span></label>
+                    <input type="text" id="authName" placeholder="e.g. Ben" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Email Address</label>
+                    <input type="email" id="authEmail" required placeholder="trader@example.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Password</label>
+                    <input type="password" id="authPassword" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-purple-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button type="submit" onclick="tracker.authMode = 'login'" class="py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl shadow-lg shadow-purple-600/30 transition">Log In</button>
+                    <button type="submit" onclick="tracker.authMode = 'signup'" class="py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl transition">Sign Up</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="w-64 bg-slate-900/90 backdrop-blur-xl border-r border-slate-800/80 flex flex-col shrink-0 z-20">
+        <div class="p-6 border-b border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-sky-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <i class="ph-bold ph-chart-line-up text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-sm tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-sky-400">
+                        BINJ TRACKER
+                    </h1>
+                    <p id="userEmailBadge" class="text-[10px] text-slate-400 truncate max-w-[120px]">Not Logged In</p>
+                </div>
+            </div>
+            <button onclick="tracker.openSettingsModal()" class="text-slate-400 hover:text-purple-400 transition" title="Account & Settings">
+                <i class="ph-bold ph-gear text-lg"></i>
+            </button>
+        </div>
+
+        <div class="p-4">
+            <button onclick="tracker.openAddTradeModal()" class="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 transition-all">
+                <i class="ph-bold ph-plus text-base"></i> + Add Trade
+            </button>
+        </div>
+
+        <nav class="flex-1 px-4 space-y-1.5 text-xs font-semibold text-slate-400">
+            <button onclick="tracker.switchPage('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-4 py-3 bg-purple-600/15 text-purple-300 border border-purple-500/30 rounded-xl text-left transition shadow-sm">
+                <i class="ph-bold ph-squares-four text-base"></i> Dashboard
+            </button>
+            <button onclick="tracker.switchPage('log')" id="nav-log" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
+                <i class="ph-bold ph-list-bullets text-base"></i> Trade Log
+            </button>
+            <button onclick="tracker.switchPage('analytics')" id="nav-analytics" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
+                <i class="ph-bold ph-chart-pie-slice text-base"></i> Analytics
+            </button>
+            <button onclick="tracker.switchPage('calendar')" id="nav-calendar" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
+                <i class="ph-bold ph-calendar-blank text-base"></i> Trade Calendar
+            </button>
+            <button onclick="tracker.switchPage('report')" id="nav-report" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 hover:text-slate-200 rounded-xl text-left transition">
+                <i class="ph-bold ph-file-image text-base"></i> Recap Report
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+            <span>by <a href="https://x.com/traderbinj" target="_blank" class="text-purple-400 hover:underline">@traderbinj</a></span>
+            <button onclick="tracker.handleLogout()" class="text-rose-400 hover:underline font-semibold flex items-center gap-1"><i class="ph-bold ph-sign-out"></i> Log Out</button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT VIEW -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-y-auto z-10">
+        <header class="bg-slate-900/60 backdrop-blur-md border-b border-slate-800/80 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
+            <div class="flex items-center gap-4">
+                <h2 id="pageHeaderTitle" class="text-base font-bold text-slate-100">Performance Dashboard</h2>
+                <span class="text-xs px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono shadow-sm">Cloud Sync Active</span>
+                <button id="logDownloadBtn" onclick="tracker.downloadLogReport()" class="hidden text-xs px-3 py-1 rounded-full bg-purple-600/15 text-purple-300 border border-purple-500/30 hover:bg-purple-600/25 font-semibold items-center gap-1.5 transition" title="Download a recap image for the period selected on the right"><i class="ph-bold ph-download-simple"></i> Download Recap</button>
+            </div>
+
+            <div class="flex items-center gap-4" id="dashboardTfWrapper">
+                <div class="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-semibold shadow-inner">
+                    <button onclick="tracker.setTimeframe('all')" id="tf-all" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white transition shadow">All Time</button>
+                    <button onclick="tracker.setTimeframe('days')" id="tf-days" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Days</button>
+                    <button onclick="tracker.setTimeframe('weeks')" id="tf-weeks" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Weeks</button>
+                    <button onclick="tracker.setTimeframe('months')" id="tf-months" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Months</button>
+                    <button onclick="tracker.setTimeframe('years')" id="tf-years" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Year</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- DASHBOARD -->
+        <div id="page-dashboard" class="p-8 space-y-8 max-w-7xl w-full mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="dashboard-card rounded-2xl p-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Total Net Return</div>
+                    <div id="metricTotalR" class="text-3xl font-black font-mono text-emerald-400">+0.0R</div>
+                    <div id="metricTotalDollar" class="text-xs font-mono font-semibold mt-1 text-slate-400">($0.00)</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Win Rate %</div>
+                    <div id="metricWinRate" class="text-3xl font-black font-mono text-sky-400">0%</div>
+                    <div class="text-[11px] text-slate-500 mt-2"><span id="metricWinsCount" class="text-emerald-400 font-bold">0</span> wins / <span id="metricLossesCount" class="text-rose-400 font-bold">0</span> losses</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Profit Factor (R)</div>
+                    <div id="metricProfitFactor" class="text-3xl font-black font-mono text-purple-400">0.00</div>
+                    <div class="text-[11px] text-slate-500 mt-2">Gross Wins / Gross Losses</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Total Trades Logged</div>
+                    <div id="metricTotalTrades" class="text-3xl font-black font-mono text-slate-100">0</div>
+                    <div class="text-[11px] text-slate-500 mt-2">Active tracker entries</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="dashboard-card lg:col-span-2 rounded-2xl p-6 flex flex-col">
+                    <h3 class="font-bold text-sm text-slate-100 mb-4">Cumulative R-Equity Curve</h3>
+                    <div class="flex-1 relative min-h-[300px]"><canvas id="equityCurveChart"></canvas></div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6 flex flex-col">
+                    <h3 class="font-bold text-sm text-slate-100 mb-1">Winning vs Losing Trades</h3>
+                    <div class="flex-1 relative flex items-center justify-center min-h-[220px]">
+                        <canvas id="winRateDoughnut"></canvas>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-2">
+                            <span class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Ratio</span>
+                            <div class="text-xl font-black font-mono mt-0.5">
+                                <span id="centerWinCount" class="text-emerald-400">0</span> : <span id="centerLossCount" class="text-rose-400">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dashboardCalendarContainer"></div>
+        </div>
+
+        <!-- TRADE LOG -->
+        <div id="page-log" class="hidden p-8 space-y-6 max-w-7xl w-full mx-auto">
+            <div id="tradeLogContainer" class="space-y-4"></div>
+        </div>
+
+        <!-- ANALYTICS -->
+        <div id="page-analytics" class="hidden p-8 space-y-8 max-w-7xl w-full mx-auto">
+            <div class="dashboard-card rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+                <span class="text-xs font-bold text-slate-200 uppercase">Filter Date Range:</span>
+                <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                    <button onclick="tracker.setAnalyticsDateRange('all')" id="an-tf-all" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white transition">All Time</button>
+                    <button onclick="tracker.setAnalyticsDateRange('week')" id="an-tf-week" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">This Week</button>
+                    <button onclick="tracker.setAnalyticsDateRange('month')" id="an-tf-month" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">This Month</button>
+                    <button onclick="tracker.setAnalyticsDateRange('year')" id="an-tf-year" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">This Year</button>
+                </div>
+            </div>
+
+            <!-- THOROUGH ANALYTICS METRICS GRID -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-300 uppercase">Filtered Return</h4>
+                    <div id="anaFilterPrimaryReturn" class="text-2xl font-black font-mono text-emerald-400 mt-1">+0.0R</div>
+                    <div id="anaFilterSecondaryReturn" class="text-xs text-slate-400 mt-1">0 trades</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-200 uppercase">Best Day Edge</h4>
+                    <div id="anaBestDay" class="text-2xl font-black font-mono text-emerald-400 mt-1">N/A</div>
+                    <div class="text-xs text-slate-500 mt-1">Most profitable day</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-200 uppercase">Worst Day Edge</h4>
+                    <div id="anaWorstDay" class="text-2xl font-black font-mono text-rose-400 mt-1">N/A</div>
+                    <div class="text-xs text-slate-500 mt-1">Least profitable day</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-200 uppercase">Best Asset Edge</h4>
+                    <div id="anaBestAsset" class="text-2xl font-black font-mono text-purple-400 mt-1">N/A</div>
+                    <div class="text-xs text-slate-500 mt-1">Top performing asset</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-200 uppercase">Worst Asset Edge</h4>
+                    <div id="anaWorstAsset" class="text-2xl font-black font-mono text-rose-400 mt-1">N/A</div>
+                    <div class="text-xs text-slate-500 mt-1">Weakest performing asset</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-200 uppercase">Best Session Edge</h4>
+                    <div id="anaBestSession" class="text-2xl font-black font-mono text-sky-400 mt-1">N/A</div>
+                    <div class="text-xs text-slate-500 mt-1">Top performing session</div>
+                </div>
+                <div class="dashboard-card rounded-2xl p-6">
+                    <h4 class="font-bold text-xs text-slate-200 uppercase">Worst Session Edge</h4>
+                    <div id="anaWorstSession" class="text-2xl font-black font-mono text-rose-400 mt-1">N/A</div>
+                    <div class="text-xs text-slate-500 mt-1">Weakest performing session</div>
+                </div>
+            </div>
+
+            <!-- TAG & PSYCHOLOGY EDGE BREAKDOWN -->
+            <div class="dashboard-card rounded-2xl p-6">
+                <h3 class="font-bold text-sm text-slate-100 mb-4">Tag & Psychology Edge Breakdown</h3>
+                <div id="tagEdgeContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- CALENDAR -->
+        <div id="page-calendar" class="hidden p-8 max-w-7xl w-full mx-auto">
+            <div id="calendarViewContainer"></div>
+        </div>
+
+        <!-- RECAP REPORT PAGE -->
+        <div id="page-report" class="hidden p-8 max-w-6xl w-full mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+                <div class="lg:col-span-2 dashboard-card rounded-2xl p-6 space-y-6 text-xs">
+                    <div class="space-y-3">
+                        <div class="font-bold text-slate-200 text-sm">Date Range</div>
+                        <div class="flex flex-wrap gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 font-semibold shadow-inner">
+                            <button onclick="tracker.setReportPreset('week')" id="rp-week" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">This Week</button>
+                            <button onclick="tracker.setReportPreset('month')" id="rp-month" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">This Month</button>
+                            <button onclick="tracker.setReportPreset('year')" id="rp-year" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">This Year</button>
+                            <button onclick="tracker.setReportPreset('all')" id="rp-all" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">All Time</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-slate-400 font-semibold mb-1">From</label>
+                                <input type="date" id="reportFrom" onchange="tracker.onReportDateChange()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-purple-500">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 font-semibold mb-1">To</label>
+                                <input type="date" id="reportTo" onchange="tracker.onReportDateChange()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-purple-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="font-bold text-slate-200 text-sm">Show R by</div>
+                        <div class="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 font-semibold shadow-inner">
+                            <button onclick="tracker.setReportBreakdown('days')" id="rb-days" class="flex-1 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Days</button>
+                            <button onclick="tracker.setReportBreakdown('weeks')" id="rb-weeks" class="flex-1 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Weeks</button>
+                            <button onclick="tracker.setReportBreakdown('months')" id="rb-months" class="flex-1 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Months</button>
+                        </div>
+                        <p id="reportNote" class="text-[11px] text-amber-400 hidden"></p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="font-bold text-slate-200 text-sm">Background</div>
+                        <div class="flex gap-2">
+                            <button onclick="document.getElementById('reportBgFile').click()" class="flex-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition flex items-center justify-center gap-2"><i class="ph-bold ph-image"></i> Upload Image</button>
+                            <button onclick="tracker.clearReportBackground()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold rounded-xl border border-slate-800 transition">Remove</button>
+                        </div>
+                        <input type="file" id="reportBgFile" accept="image/*" class="hidden" onchange="tracker.handleReportBgUpload(this)">
+                        <div>
+                            <div class="flex justify-between text-slate-400 font-semibold mb-1"><span>Background darkness</span><span id="reportDimVal">60%</span></div>
+                            <input type="range" id="reportDim" min="0" max="90" value="60" oninput="tracker.onReportDim(this.value)" class="w-full accent-purple-500">
+                        </div>
+                    </div>
+
+                    <button onclick="tracker.downloadReport()" class="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 transition">
+                        <i class="ph-bold ph-download-simple text-base"></i> Download PNG
+                    </button>
+                </div>
+
+                <div class="lg:col-span-3 flex justify-center">
+                    <canvas id="reportCanvas" width="1080" height="1350" style="width:100%;max-width:480px;height:auto;" class="rounded-2xl border border-slate-800 shadow-2xl"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- CALENDAR TEMPLATE -->
+    <template id="calendarTemplate">
+        <div class="dashboard-card rounded-2xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-bold text-base text-slate-100" id="calendarTitle">Month Year</h3>
+                <div class="flex gap-1">
+                    <button onclick="tracker.changeMonth(-1)" class="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition"><i class="ph-bold ph-caret-left"></i></button>
+                    <button onclick="tracker.changeMonth(1)" class="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition"><i class="ph-bold ph-caret-right"></i></button>
+                </div>
+            </div>
+            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 mb-2">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+            </div>
+            <div id="calendarGrid" class="grid grid-cols-7 gap-2"></div>
+        </div>
+    </template>
+
+    <!-- DAY TRADES MODAL -->
+    <div id="dayModal" class="hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+                <div>
+                    <h3 id="dayModalTitle" class="font-bold text-base text-slate-100"></h3>
+                    <p id="dayModalSummary" class="text-xs text-slate-400 mt-0.5"></p>
+                </div>
+                <button onclick="tracker.closeDayModal()" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
+            </div>
+            <div id="dayModalList" class="space-y-2"></div>
+            <button onclick="tracker.openAddTradeModal(tracker.activeDay)" class="w-full px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2"><i class="ph-bold ph-plus"></i> Add Trade on this day</button>
+        </div>
+    </div>
+
+    <!-- ADD TRADE MODAL -->
+    <div id="addTradeModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 id="addTradeTitle" class="font-bold text-base text-slate-100">Add New Trade</h3>
+                <button onclick="tracker.closeAddTradeModal()" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
+            </div>
+            <form onsubmit="tracker.handleTradeSubmit(event)" class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="date" id="tradeDate" required class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                    <input type="text" id="tradeR" placeholder="Return in R (+2.5 or -1)" required class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 font-mono">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <select id="tradeAsset" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                        <!-- Populated dynamically -->
+                    </select>
+                    <select id="tradeSession" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1.5">Trade Tags & Psychology</label>
+                    <div id="tradeTagSelector" class="flex flex-wrap gap-2">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Chart Screenshot URL (Optional)</label>
+                    <input type="url" id="tradeImage" placeholder="https://imgur.com/..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                </div>
+                <textarea id="tradeNotes" rows="3" placeholder="Trade Notes / Strategy..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200"></textarea>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="tracker.closeAddTradeModal()" class="px-4 py-2 bg-slate-800 rounded-xl hover:bg-slate-700">Cancel</button>
+                    <button type="submit" id="tradeSubmitBtn" class="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition">Save Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 text-xs">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-slate-100">Account & Settings</h3>
+                <button onclick="tracker.closeSettingsModal()" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
+            </div>
+            <div class="space-y-4 py-2">
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Your Name</label>
+                    <input type="text" id="settingDisplayName" placeholder="Your name" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Account Size ($)</label>
+                    <input type="number" id="settingAccountSize" value="50000" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 font-mono">
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Dollar Value per 1R ($)</label>
+                    <input type="number" id="settingRiskPerR" value="500" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 font-mono">
+                </div>
+                <div class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl p-3">
+                    <div>
+                        <span class="font-semibold text-slate-200 block">Toggle Cash Mode (Show $ PnL)</span>
+                        <span class="text-[10px] text-slate-400">Display dollar conversions across dashboard and analytics</span>
+                    </div>
+                    <input type="checkbox" id="settingShowCash" class="w-4 h-4 accent-purple-600 cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Custom Asset Tags (comma separated)</label>
+                    <input type="text" id="settingCustomAssets" value="NQ, ES, MNQ, MES" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Custom Sessions (comma separated)</label>
+                    <input type="text" id="settingCustomSessions" value="NY AM, NY PM, London, Asia" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Custom Psychology / Setup Tags</label>
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" id="newTagInput" placeholder="Add new tag..." class="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-200">
+                        <button type="button" onclick="tracker.addNewTag()" class="px-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition">Add</button>
+                    </div>
+                    <div id="settingsTagList" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-slate-950/60 rounded-xl border border-slate-800">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="tracker.saveSettings()" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TRADE REPLAY LIGHTBOX MODAL -->
+    <div id="tradeReplayModal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl p-6 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-3">
+                    <h3 id="replayTitle" class="font-bold text-base text-slate-100">Trade Replay</h3>
+                    <span id="replayBadge" class="text-xs px-2.5 py-0.5 rounded-full font-mono font-bold"></span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="tracker.editCurrentReplayTrade()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition"><i class="ph-bold ph-pencil-simple"></i> Edit</button>
+                    <button onclick="tracker.closeReplayModal()" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center min-h-[320px] overflow-hidden relative">
+                    <img id="replayImage" src="" alt="Chart Screenshot" class="object-contain max-h-[400px] w-full hidden">
+                    <div id="replayNoImage" class="text-slate-500 text-xs flex flex-col items-center gap-2">
+                        <i class="ph-bold ph-image text-3xl"></i>
+                        <span>No chart screenshot attached</span>
+                    </div>
+                </div>
+                <div class="space-y-4 text-xs">
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                        <div class="flex justify-between"><span class="text-slate-400">Date:</span> <span id="replayDate" class="font-bold text-slate-200"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">Asset:</span> <span id="replayAsset" class="font-mono text-purple-400 font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">Session:</span> <span id="replaySession" class="text-sky-400 font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">Return:</span> <span id="replayReturn" class="font-mono font-bold"></span></div>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 font-semibold block mb-1">Tags & Psychology</span>
+                        <div id="replayTags" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 font-semibold block mb-1">Strategy Notes</span>
+                        <p id="replayNotes" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-300 min-h-[80px] whitespace-pre-wrap"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT APPLICATION LOGIC -->
+    <script>
+        const SUPABASE_URL = 'https://hrfoxyigbibrzfbetzik.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_zfQNBqn6vUDKFynQSQj6NQ_HIUGBbXg';
+        
+        const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+        // ==== REPORT ENGINE START ====
+        const RecapReport = {
+            FONT_TITLE: '"RecapDisplay", "Bodoni Moda", "Didot", Georgia, "Times New Roman", serif',
+            FONT_BODY: '"RecapBody", "Jost", "Avenir Next", "Avenir", "Helvetica Neue", Arial, sans-serif',
+            MONTHS: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+            DAYS: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+
+            pad(n) { return String(n).padStart(2, '0'); },
+            fmt(d) { return `${d.getFullYear()}-${this.pad(d.getMonth() + 1)}-${this.pad(d.getDate())}`; },
+            parse(str) { const [y, m, d] = str.split('-').map(Number); return new Date(y, m - 1, d); },
+            addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); },
+            mondayOf(d) { return this.addDays(d, -((d.getDay() + 6) % 7)); },
+            isDate(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s || ''); },
+            fmtR(r) { const v = Math.round(r * 100) / 100; return `${v >= 0 ? '+' : ''}${v}R`; },
+            plural(n) { return `${n} trade${n === 1 ? '' : 's'}`; },
+
+            presetRange(preset, trades, today) {
+                const n = today || new Date();
+                const t = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+                if (preset === 'today') return { start: t, end: t };
+                if (preset === 'week') { const s = this.mondayOf(t); return { start: s, end: this.addDays(s, 6) }; }
+                if (preset === 'month') return { start: new Date(t.getFullYear(), t.getMonth(), 1), end: new Date(t.getFullYear(), t.getMonth() + 1, 0) };
+                if (preset === 'year') return { start: new Date(t.getFullYear(), 0, 1), end: new Date(t.getFullYear(), 11, 31) };
+                const dates = (trades || []).map(x => x.date).filter(d => this.isDate(d)).sort();
+                if (!dates.length) return { start: t, end: t };
+                return { start: this.parse(dates[0]), end: this.parse(dates[dates.length - 1]) };
+            },
+
+            weekLabel(ws, we, multiYear) {
+                const M = this.MONTHS.map(m => m.slice(0, 3));
+                if (ws.getFullYear() !== we.getFullYear()) return `${M[ws.getMonth()]} ${ws.getDate()}, ${ws.getFullYear()} - ${M[we.getMonth()]} ${we.getDate()}, ${we.getFullYear()}`;
+                const yr = multiYear ? `, ${we.getFullYear()}` : '';
+                if (ws.getMonth() === we.getMonth()) return `${M[ws.getMonth()]} ${ws.getDate()}-${we.getDate()}${yr}`;
+                return `${M[ws.getMonth()]} ${ws.getDate()} - ${M[we.getMonth()]} ${we.getDate()}${yr}`;
+            },
+
+            rangeLabel(start, end, inRange) {
+                const M = this.MONTHS;
+                let e = end;
+                // a Monday-Sunday week with no weekend trades reads as a trading week (Mon-Fri)
+                if (Math.round((end - start) / 86400000) === 6 && start.getDay() === 1) {
+                    const hasWeekend = inRange.some(t => { const d = this.parse(t.date).getDay(); return d === 0 || d === 6; });
+                    if (!hasWeekend) e = this.addDays(start, 4);
+                }
+                const sameYear = start.getFullYear() === e.getFullYear();
+                const sameMonth = sameYear && start.getMonth() === e.getMonth();
+                const lastOfMonth = new Date(e.getFullYear(), e.getMonth() + 1, 0).getDate();
+                if (sameYear && start.getMonth() === 0 && start.getDate() === 1 && e.getMonth() === 11 && e.getDate() === 31) return String(start.getFullYear());
+                if (sameMonth && start.getDate() === 1 && e.getDate() === lastOfMonth && end > start) return `${M[start.getMonth()]} ${start.getFullYear()}`;
+                if (this.fmt(start) === this.fmt(e)) return `${M[start.getMonth()]} ${start.getDate()}`;
+                if (sameMonth) return `${M[start.getMonth()]} ${start.getDate()}-${e.getDate()}`;
+                if (sameYear) return `${M[start.getMonth()]} ${start.getDate()} - ${M[e.getMonth()]} ${e.getDate()}`;
+                const S = M.map(m => m.slice(0, 3));
+                return `${S[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()} - ${S[e.getMonth()]} ${e.getDate()}, ${e.getFullYear()}`;
+            },
+
+            build(trades, start, end, breakdown, opts) {
+                opts = opts || {};
+                const s = this.fmt(start), e = this.fmt(end);
+                const inRange = (trades || []).filter(t => this.isDate(t.date) && t.date >= s && t.date <= e);
+                const multiYear = start.getFullYear() !== end.getFullYear();
+                const spanDays = Math.round((end - start) / 86400000);
+                const M3 = this.MONTHS.map(m => m.slice(0, 3));
+
+                const make = (mode) => {
+                    const map = new Map();
+                    inRange.forEach(t => {
+                        const d = this.parse(t.date);
+                        let key, label;
+                        if (mode === 'days') {
+                            key = t.date;
+                            label = spanDays <= 6 ? this.DAYS[d.getDay()]
+                                : `${this.DAYS[d.getDay()].slice(0, 3)} ${M3[d.getMonth()]} ${d.getDate()}${multiYear ? ', ' + d.getFullYear() : ''}`;
+                        } else if (mode === 'weeks') {
+                            const ws = this.mondayOf(d);
+                            key = this.fmt(ws);
+                            label = this.weekLabel(ws, this.addDays(ws, 6), multiYear);
+                        } else {
+                            key = t.date.slice(0, 7);
+                            label = this.MONTHS[d.getMonth()] + (multiYear ? ` ${d.getFullYear()}` : '');
+                        }
+                        if (!map.has(key)) map.set(key, { key, label, count: 0, r: 0 });
+                        const row = map.get(key);
+                        row.count++; row.r += Number(t.r) || 0;
+                    });
+                    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+                };
+
+                const order = ['days', 'weeks', 'months'];
+                let mode = order.includes(breakdown) ? breakdown : 'days';
+                let rows = make(mode);
+                while (rows.length > 16 && order.indexOf(mode) < 2) { mode = order[order.indexOf(mode) + 1]; rows = make(mode); }
+                if (rows.length > 16) rows = rows.slice(-16);
+
+                const cumulative = [0];
+                rows.forEach(r => cumulative.push(cumulative[cumulative.length - 1] + r.r));
+                const totalR = inRange.reduce((a, t) => a + (Number(t.r) || 0), 0);
+
+                return {
+                    rows, cumulative, mode,
+                    requested: breakdown,
+                    coarsened: mode !== breakdown,
+                    total: { count: inRange.length, r: totalR },
+                    rangeLabel: opts.labelOverride || this.rangeLabel(start, end, inRange)
+                };
+            },
+
+            async ensureFonts() {
+                try {
+                    if (typeof document === 'undefined' || !document.fonts) return;
+                    await Promise.race([
+                        Promise.all([
+                            document.fonts.load('400 100px "RecapDisplay"'),
+                            document.fonts.load('300 40px "RecapBody"'),
+                            document.fonts.load('400 40px "RecapBody"')
+                        ]),
+                        new Promise(r => setTimeout(r, 2500))
+                    ]);
+                } catch (e) { /* fall back to system fonts */ }
+            },
+
+            draw(ctx, W, H, data, opts) {
+                opts = opts || {};
+                const bgImg = opts.bgImg || null;
+                const dim = typeof opts.dim === 'number' ? opts.dim : 0.6;
+                const showHandles = opts.showHandles !== false;
+                const mL = 62;
+
+                ctx.save();
+                ctx.clearRect(0, 0, W, H);
+                ctx.textBaseline = 'alphabetic';
+                ctx.textAlign = 'left';
+
+                // ----- background -----
+                ctx.fillStyle = '#06070c';
+                ctx.fillRect(0, 0, W, H);
+                if (bgImg) {
+                    const iw = bgImg.naturalWidth || bgImg.width, ih = bgImg.naturalHeight || bgImg.height;
+                    const sc = Math.max(W / iw, H / ih);
+                    const dw = iw * sc, dh = ih * sc;
+                    ctx.drawImage(bgImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+                } else {
+                    let g = ctx.createRadialGradient(W * 0.15, H * 0.82, 0, W * 0.15, H * 0.82, W * 0.9);
+                    g.addColorStop(0, 'rgba(88, 52, 160, 0.55)'); g.addColorStop(1, 'rgba(88, 52, 160, 0)');
+                    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+                    g = ctx.createRadialGradient(W * 0.88, H * 0.95, 0, W * 0.88, H * 0.95, W * 0.85);
+                    g.addColorStop(0, 'rgba(40, 110, 190, 0.45)'); g.addColorStop(1, 'rgba(40, 110, 190, 0)');
+                    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+                }
+                ctx.fillStyle = `rgba(0,0,0,${dim})`;
+                ctx.fillRect(0, 0, W, H);
+                const fade = ctx.createLinearGradient(0, 0, 0, H * 0.45);
+                fade.addColorStop(0, 'rgba(0,0,0,0.35)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = fade; ctx.fillRect(0, 0, W, H * 0.45);
+
+                // ----- title (condensed to match the reference) -----
+                const makeCanvas = opts.makeCanvas || ((w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
+                const titleSize = 160;
+                ctx.font = `400 ${titleSize}px ${this.FONT_TITLE}`;
+                const w1 = ctx.measureText('TRADING').width;
+                const sx = Math.max(0.55, Math.min(1, 580 / w1));
+                const drawTitle = (txt, baseline) => {
+                    const tw = Math.ceil(ctx.measureText(txt).width) + 20, th = Math.ceil(titleSize * 1.3);
+                    const tc = makeCanvas(tw, th);
+                    const tctx = tc.getContext('2d');
+                    tctx.font = `400 ${titleSize}px ${this.FONT_TITLE}`;
+                    tctx.fillStyle = '#ffffff';
+                    tctx.textBaseline = 'alphabetic';
+                    tctx.fillText(txt, 0, titleSize);
+                    ctx.drawImage(tc, 0, 0, tw, th, mL, baseline - titleSize, tw * sx, th);
+                };
+                drawTitle('TRADING', 170);
+                drawTitle('RECAP', 298);
+
+                // ----- date range -----
+                let subSize = 72;
+                ctx.font = `400 ${subSize}px ${this.FONT_TITLE}`;
+                const sw = ctx.measureText(data.rangeLabel).width;
+                const maxSub = W - mL * 2;
+                if (sw > maxSub) { subSize = subSize * maxSub / sw; ctx.font = `400 ${subSize}px ${this.FONT_TITLE}`; }
+                ctx.fillStyle = 'rgba(255,255,255,0.62)';
+                ctx.fillText(data.rangeLabel, mL, 390);
+
+                // ----- breakdown rows -----
+                const lines = data.rows.map(r => `${r.label}: ${this.plural(r.count)} | ${this.fmtR(r.r)}`);
+                let all;
+                if (lines.length) all = [...lines, `Total: ${this.plural(data.total.count)} | ${this.fmtR(data.total.r)}`];
+                else all = ['No trades in this period'];
+                const top = 560, bottom = 1240;
+                const spacing = Math.min(134, all.length > 1 ? (bottom - top) / (all.length - 1) : 134);
+                let size = Math.max(22, Math.min(40, 40 * Math.min(1, spacing / 84)));
+                ctx.font = `300 ${size}px ${this.FONT_BODY}`;
+                const widest = Math.max(...all.map(t => ctx.measureText(t).width));
+                const maxW = 548;
+                if (widest > maxW) size = Math.max(18, size * maxW / widest);
+                all.forEach((txt, i) => {
+                    const isTotal = lines.length > 0 && i === all.length - 1;
+                    ctx.font = `${isTotal ? 400 : 300} ${size}px ${this.FONT_BODY}`;
+                    ctx.fillStyle = isTotal ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.88)';
+                    ctx.fillText(txt, mL, top + i * spacing);
+                });
+
+                // ----- translucent equity chart -----
+                const x0 = 630, x1 = 1018, y0 = 523, y1 = 1195;
+                const cum = data.cumulative;
+                const minV = Math.min(0, ...cum), maxV = Math.max(0, ...cum);
+                const span = (maxV - minV) || 1;
+                const topV = maxV + span * 0.06;
+                const botV = minV - span * (minV < 0 ? 0.06 : 0.17);
+                const yOf = v => y0 + (topV - v) / (topV - botV) * (y1 - y0);
+                const zeroY = yOf(0);
+
+                ctx.save();
+                ctx.globalAlpha = 0.9;
+                ctx.strokeStyle = 'rgba(255,255,255,0.38)';
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x0, zeroY); ctx.lineTo(x1, zeroY); ctx.stroke();
+                if (showHandles) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    [[x0, y0], [x0, zeroY], [x1, zeroY], [x0, y1]].forEach(([px, py]) => ctx.fillRect(px - 7, py - 7, 14, 14));
+                }
+                if (cum.length > 1) {
+                    const xa = x0 + 12, xb = x1 - 6;
+                    ctx.strokeStyle = 'rgba(214, 140, 78, 0.85)';
+                    ctx.lineWidth = 5;
+                    ctx.lineJoin = 'miter'; ctx.miterLimit = 3; ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    cum.forEach((v, i) => {
+                        const px = xa + (xb - xa) * (i / (cum.length - 1));
+                        const py = yOf(v);
+                        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                    });
+                    ctx.stroke();
+                }
+                ctx.restore();
+
+                // ----- badge -----
+                const cx = 972, cy = 100;
+                const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 44);
+                bg.addColorStop(0, '#020a28'); bg.addColorStop(0.55, '#0b2c6b'); bg.addColorStop(1, '#4b78bd');
+                ctx.fillStyle = bg;
+                ctx.beginPath(); ctx.arc(cx, cy, 44, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.arc(cx, cy, 45, 0, Math.PI * 2); ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+        // ==== REPORT ENGINE END ====
+
+        class RTradeTracker {
+            constructor() {
+                this.user = null;
+                this.trades = [];
+                this.settings = { 
+                    accountSize: 50000, 
+                    riskPerR: 500, 
+                    showCash: false, 
+                    assets: ['NQ', 'ES', 'MNQ', 'MES'], 
+                    sessions: ['NY AM', 'NY PM', 'London', 'Asia'],
+                    tags: ['A+ Setup', 'Breakout', 'Trend', 'FOMO', 'Revenge', 'Broke Rules']
+                };
+                this.currentPage = 'dashboard';
+                this.timeframe = 'all'; // Default to All Time so June, July, August, Sept, Nov all show on chart
+                this.analyticsRange = 'all';
+                this.report = { preset: 'week', breakdown: 'days', dim: 0.6, bgImg: null, bgData: null, ready: false, prefsLoaded: false };
+                this.currentDate = new Date();
+                this.authMode = 'login';
+                this.equityChart = null;
+                this.doughnutChart = null;
+                this.selectedTagsForNewTrade = [];
+                
+                this.initAuth();
+            }
+
+            getDisplayName() {
+                const meta = (this.user && this.user.user_metadata) || {};
+                return (meta.full_name || meta.name || '').trim();
+            }
+
+            updateUserBadge() {
+                const badge = document.getElementById('userEmailBadge');
+                if (!badge || !this.user) return;
+                const name = this.getDisplayName();
+                badge.innerText = name || this.user.email;
+                badge.title = this.user.email;
+                if (name) badge.className = 'text-xs font-semibold text-slate-200 truncate max-w-[140px]';
+                else badge.className = 'text-[10px] text-slate-400 truncate max-w-[120px]';
+            }
+
+            async initAuth() {
+                if (!supabaseClient) return;
+
+                const { data } = await supabaseClient.auth.getSession();
+                if (data && data.session) {
+                    this.user = data.session.user;
+                    document.getElementById('authModal').classList.add('hidden');
+                    this.updateUserBadge();
+                    await this.fetchTradesFromSupabase();
+                } else {
+                    document.getElementById('authModal').classList.remove('hidden');
+                }
+
+                supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                    if (session) {
+                        this.user = session.user;
+                        document.getElementById('authModal').classList.add('hidden');
+                        this.updateUserBadge();
+                        await this.fetchTradesFromSupabase();
+                    } else {
+                        this.user = null;
+                        this.trades = [];
+                        document.getElementById('authModal').classList.remove('hidden');
+                    }
+                });
+            }
+
+            async handleAuthSubmit(e) {
+                e.preventDefault();
+                const email = document.getElementById('authEmail').value;
+                const password = document.getElementById('authPassword').value;
+                const fullName = (document.getElementById('authName').value || '').trim();
+
+                if (this.authMode === 'login') {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) alert('Login error: ' + error.message);
+                    else document.getElementById('authModal').classList.add('hidden');
+                } else {
+                    if (!fullName) { alert('Please enter your name to sign up.'); return; }
+                    const { data, error } = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+                    if (error) alert('Sign up error: ' + error.message);
+                    else if (data.user && !data.session) alert('Account created! Try logging in now.');
+                    else document.getElementById('authModal').classList.add('hidden');
+                }
+            }
+
+            async handleLogout() {
+                if (supabaseClient) await supabaseClient.auth.signOut();
+            }
+
+            async fetchTradesFromSupabase() {
+                if (!this.user || !supabaseClient) return;
+                const { data, error } = await supabaseClient
+                    .from('trades')
+                    .select('*')
+                    .order('date', { ascending: true })
+                    .limit(1000);
+
+                if (error) console.error(error);
+                else {
+                    this.trades = (data || []).map(t => ({
+                        ...t,
+                        r: parseFloat(String(t.r).replace('R','').replace('+','').trim()) || 0,
+                        date: String(t.date || '').slice(0, 10)
+                    }));
+                    this.renderPageStructure();
+                    this.renderDashboard();
+                    this.renderCalendar();
+                    this.renderCharts();
+                    this.renderAnalytics();
+                    this.renderTradeLog();
+                    this.renderDayModal();
+                }
+            }
+
+            async handleTradeSubmit(e) {
+                e.preventDefault();
+                const date = document.getElementById('tradeDate').value;
+                let rawR = document.getElementById('tradeR').value.replace('R','').replace('+','').trim();
+                let rVal = parseFloat(rawR);
+                const asset = document.getElementById('tradeAsset').value;
+                const session = document.getElementById('tradeSession').value;
+                const notes = document.getElementById('tradeNotes').value;
+                const image = document.getElementById('tradeImage').value;
+
+                if (isNaN(rVal)) { alert('Please enter a valid R value, e.g. +2.5 or -1'); return; }
+
+                const payload = {
+                    date,
+                    r: rVal,
+                    asset,
+                    session,
+                    notes,
+                    image,
+                    tags: [...this.selectedTagsForNewTrade]
+                };
+
+                const editedId = this.editingTradeId;
+                if (editedId !== null && editedId !== undefined) {
+                    const { data, error } = await supabaseClient.from('trades').update(payload).eq('id', editedId).select();
+                    if (error) { alert(error.message); return; }
+                    if (!data || data.length === 0) { alert('Could not update this trade.'); return; }
+                    this.closeAddTradeModal();
+                    await this.fetchTradesFromSupabase();
+                    this.openReplayModal(editedId);
+                } else {
+                    const { error } = await supabaseClient.from('trades').insert([{ user_id: this.user.id, ...payload }]).select();
+                    if (error) alert(error.message);
+                    else {
+                        this.closeAddTradeModal();
+                        await this.fetchTradesFromSupabase();
+                    }
+                }
+            }
+
+            async deleteTrade(id) {
+                if (!supabaseClient) return;
+                const { error } = await supabaseClient.from('trades').delete().eq('id', id);
+                if (error) alert(error.message);
+                else await this.fetchTradesFromSupabase();
+            }
+
+            // ---------------- RECAP REPORT ----------------
+            async loadReportBackground() {
+                if (!this.report.prefsLoaded) {
+                    this.report.prefsLoaded = true;
+                    try {
+                        const dim = localStorage.getItem('binj_report_dim');
+                        if (dim !== null && !isNaN(parseFloat(dim))) this.report.dim = Math.min(0.9, Math.max(0, parseFloat(dim)));
+                        this.report.bgData = localStorage.getItem('binj_report_bg');
+                    } catch (e) { /* storage unavailable */ }
+                }
+                if (this.report.bgImg) return this.report.bgImg;
+                if (!this.report.bgData) return null;
+                return new Promise(resolve => {
+                    const img = new Image();
+                    img.onload = () => { this.report.bgImg = img; resolve(img); };
+                    img.onerror = () => resolve(null);
+                    img.src = this.report.bgData;
+                });
+            }
+
+            async openReportPage() {
+                if (!this.report.ready) {
+                    this.report.ready = true;
+                    await this.loadReportBackground();
+                    document.getElementById('reportDim').value = Math.round(this.report.dim * 100);
+                    document.getElementById('reportDimVal').innerText = Math.round(this.report.dim * 100) + '%';
+                    this.applyReportPreset('week');
+                    this.styleReportBreakdown();
+                }
+                this.renderReportPreview();
+            }
+
+            styleReportBreakdown() {
+                ['days', 'weeks', 'months'].forEach(b => {
+                    const btn = document.getElementById(`rb-${b}`);
+                    if (btn) btn.className = b === this.report.breakdown
+                        ? "flex-1 px-3 py-1.5 rounded-lg bg-purple-600 text-white transition shadow"
+                        : "flex-1 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition";
+                });
+            }
+
+            applyReportPreset(preset) {
+                this.report.preset = preset;
+                const { start, end } = RecapReport.presetRange(preset, this.trades);
+                document.getElementById('reportFrom').value = RecapReport.fmt(start);
+                document.getElementById('reportTo').value = RecapReport.fmt(end);
+                ['week', 'month', 'year', 'all'].forEach(p => {
+                    const btn = document.getElementById(`rp-${p}`);
+                    if (btn) btn.className = p === preset
+                        ? "px-3 py-1.5 rounded-lg bg-purple-600 text-white transition shadow"
+                        : "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition";
+                });
+            }
+
+            setReportPreset(preset) {
+                this.applyReportPreset(preset);
+                this.renderReportPreview();
+            }
+
+            onReportDateChange() {
+                this.report.preset = null;
+                this.applyReportPresetStyleOnly();
+                this.renderReportPreview();
+            }
+
+            applyReportPresetStyleOnly() {
+                ['week', 'month', 'year', 'all'].forEach(p => {
+                    const btn = document.getElementById(`rp-${p}`);
+                    if (btn) btn.className = "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition";
+                });
+            }
+
+            setReportBreakdown(b) {
+                this.report.breakdown = b;
+                this.styleReportBreakdown();
+                this.renderReportPreview();
+            }
+
+            onReportDim(v) {
+                this.report.dim = Math.min(0.9, Math.max(0, Number(v) / 100));
+                document.getElementById('reportDimVal').innerText = Math.round(this.report.dim * 100) + '%';
+                try { localStorage.setItem('binj_report_dim', String(this.report.dim)); } catch (e) {}
+                this.renderReportPreview();
+            }
+
+            handleReportBgUpload(input) {
+                const file = input.files && input.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // scale to the recap size (cover) so the saved copy stays small
+                        const c = document.createElement('canvas');
+                        c.width = 1080; c.height = 1350;
+                        const cx = c.getContext('2d');
+                        const sc = Math.max(1080 / img.width, 1350 / img.height);
+                        const dw = img.width * sc, dh = img.height * sc;
+                        cx.drawImage(img, (1080 - dw) / 2, (1350 - dh) / 2, dw, dh);
+                        const data = c.toDataURL('image/jpeg', 0.88);
+                        const flat = new Image();
+                        flat.onload = () => {
+                            this.report.bgImg = flat;
+                            this.report.bgData = data;
+                            try { localStorage.setItem('binj_report_bg', data); } catch (e) { /* too large to remember; still used this session */ }
+                            this.renderReportPreview();
+                        };
+                        flat.src = data;
+                    };
+                    img.onerror = () => alert('Could not read that image. Please use a JPG, PNG or WebP file.');
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(file);
+                input.value = '';
+            }
+
+            clearReportBackground() {
+                this.report.bgImg = null;
+                this.report.bgData = null;
+                try { localStorage.removeItem('binj_report_bg'); } catch (e) {}
+                this.renderReportPreview();
+            }
+
+            readReportRange() {
+                const f = document.getElementById('reportFrom').value;
+                const t = document.getElementById('reportTo').value;
+                let start = RecapReport.isDate(f) ? RecapReport.parse(f) : null;
+                let end = RecapReport.isDate(t) ? RecapReport.parse(t) : null;
+                if (!start || !end) return RecapReport.presetRange('week', this.trades);
+                if (start > end) [start, end] = [end, start];
+                return { start, end };
+            }
+
+            async renderReportPreview() {
+                const canvas = document.getElementById('reportCanvas');
+                if (!canvas) return;
+                const token = (this.reportRenderToken = (this.reportRenderToken || 0) + 1);
+                await RecapReport.ensureFonts();
+                if (token !== this.reportRenderToken) return;
+                const { start, end } = this.readReportRange();
+                const data = RecapReport.build(this.trades, start, end, this.report.breakdown,
+                    { labelOverride: this.report.preset === 'all' ? 'All Time' : null });
+                RecapReport.draw(canvas.getContext('2d'), canvas.width, canvas.height, data, { bgImg: this.report.bgImg, dim: this.report.dim });
+                const note = document.getElementById('reportNote');
+                if (note) {
+                    if (data.coarsened) {
+                        note.innerText = `Too many ${data.requested} to fit on one image, so it's shown by ${data.mode} instead.`;
+                        note.classList.remove('hidden');
+                    } else {
+                        note.classList.add('hidden');
+                    }
+                }
+            }
+
+            saveCanvas(canvas, filename) {
+                canvas.toBlob(blob => {
+                    if (!blob) { alert('Could not create the image.'); return; }
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = filename;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 2000);
+                }, 'image/png');
+            }
+
+            async downloadReport() {
+                await this.renderReportPreview();
+                const { start, end } = this.readReportRange();
+                this.saveCanvas(document.getElementById('reportCanvas'), `binj-recap_${RecapReport.fmt(start)}_to_${RecapReport.fmt(end)}.png`);
+            }
+
+            // Trade Log button: no date picker, it follows the timeframe selected top-right
+            async downloadLogReport() {
+                const map = {
+                    days:   { preset: 'today', breakdown: 'days' },
+                    weeks:  { preset: 'week',  breakdown: 'days' },
+                    months: { preset: 'month', breakdown: 'weeks' },
+                    years:  { preset: 'year',  breakdown: 'months' },
+                    all:    { preset: 'all',   breakdown: 'months' }
+                };
+                const cfg = map[this.timeframe] || map.all;
+                await this.loadReportBackground();
+                await RecapReport.ensureFonts();
+                const { start, end } = RecapReport.presetRange(cfg.preset, this.trades);
+                const data = RecapReport.build(this.trades, start, end, cfg.breakdown,
+                    { labelOverride: cfg.preset === 'all' ? 'All Time' : null });
+                const canvas = document.createElement('canvas');
+                canvas.width = 1080; canvas.height = 1350;
+                RecapReport.draw(canvas.getContext('2d'), 1080, 1350, data, { bgImg: this.report.bgImg, dim: this.report.dim });
+                this.saveCanvas(canvas, `binj-recap_${RecapReport.fmt(start)}_to_${RecapReport.fmt(end)}.png`);
+            }
+
+            switchPage(page) {
+                this.currentPage = page;
+                ['dashboard', 'log', 'analytics', 'calendar', 'report'].forEach(p => {
+                    const navBtn = document.getElementById(`nav-${p}`);
+                    const pageEl = document.getElementById(`page-${p}`);
+                    if (p === page) {
+                        pageEl.classList.remove('hidden');
+                        if(navBtn) {
+                            navBtn.classList.add('bg-purple-600/15', 'text-purple-300', 'border', 'border-purple-500/30');
+                            navBtn.classList.remove('hover:bg-slate-800/60', 'hover:text-slate-200');
+                        }
+                    } else {
+                        pageEl.classList.add('hidden');
+                        if(navBtn) {
+                            navBtn.classList.remove('bg-purple-600/15', 'text-purple-300', 'border', 'border-purple-500/30');
+                            navBtn.classList.add('hover:bg-slate-800/60', 'hover:text-slate-200');
+                        }
+                    }
+                });
+                const titles = { dashboard: 'Performance Dashboard', log: 'Trade Log', analytics: 'Analytics', calendar: 'Trade Calendar', report: 'Recap Report' };
+                const titleEl = document.getElementById('pageHeaderTitle');
+                if (titleEl) titleEl.innerText = titles[page] || '';
+                const dlBtn = document.getElementById('logDownloadBtn');
+                if (dlBtn) {
+                    if (page === 'log') { dlBtn.classList.remove('hidden'); dlBtn.classList.add('inline-flex'); }
+                    else { dlBtn.classList.add('hidden'); dlBtn.classList.remove('inline-flex'); }
+                }
+                const tfWrap = document.getElementById('dashboardTfWrapper');
+                if (tfWrap) tfWrap.classList.toggle('hidden', page === 'report');
+                if (page === 'report') this.openReportPage();
+                if (page === 'log') this.renderTradeLog();
+                else if (page === 'dashboard') {
+                    this.renderDashboard();
+                    this.renderCalendar();
+                    this.renderCharts();
+                }
+                else if (page === 'calendar') this.renderDedicatedCalendar();
+                else if (page === 'analytics') this.renderAnalytics();
+            }
+
+            setTimeframe(tf) {
+                this.timeframe = tf;
+                ['all', 'days', 'weeks', 'months', 'years'].forEach(t => {
+                    const btn = document.getElementById(`tf-${t}`);
+                    if (btn) {
+                        btn.className = t === tf ? "px-3 py-1.5 rounded-lg bg-purple-600 text-white transition shadow" : "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition";
+                    }
+                });
+                // keep Analytics page linked to the same timeframe
+                const map = { all: 'all', days: 'all', weeks: 'week', months: 'month', years: 'year' };
+                this.analyticsRange = map[tf] || 'all';
+                ['all', 'week', 'month', 'year'].forEach(r => {
+                    const btn = document.getElementById(`an-tf-${r}`);
+                    if (btn) btn.className = r === this.analyticsRange ? "px-3 py-1.5 rounded-lg bg-purple-600 text-white transition shadow" : "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition";
+                });
+                this.renderDashboard();
+                this.renderCharts();
+                this.renderAnalytics();
+                this.renderTradeLog();
+            }
+
+            setAnalyticsDateRange(range) {
+                this.analyticsRange = range;
+                ['all', 'week', 'month', 'year'].forEach(r => {
+                    const btn = document.getElementById(`an-tf-${r}`);
+                    if (btn) {
+                        btn.className = r === range ? "px-3 py-1.5 rounded-lg bg-purple-600 text-white transition shadow" : "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition";
+                    }
+                });
+                this.renderAnalytics();
+            }
+
+            renderPageStructure() {
+                const template = document.getElementById('calendarTemplate').content.cloneNode(true);
+                const dashboardContainer = document.getElementById('dashboardCalendarContainer');
+                if (dashboardContainer) {
+                    dashboardContainer.innerHTML = '';
+                    dashboardContainer.appendChild(template);
+                }
+                
+                const dedicatedContainer = document.getElementById('calendarViewContainer');
+                if (dedicatedContainer) {
+                    dedicatedContainer.innerHTML = '';
+                    dedicatedContainer.appendChild(document.getElementById('calendarTemplate').content.cloneNode(true));
+                }
+            }
+
+            getFilteredTradesForDashboard() {
+                if (this.trades.length === 0) return [];
+                if (this.timeframe === 'all') return this.trades;
+
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth();
+                const currentDay = now.getDate();
+                const dayOfWeek = now.getDay();
+
+                const startOfWeekDate = new Date(currentYear, currentMonth, currentDay - dayOfWeek);
+                startOfWeekDate.setHours(0,0,0,0);
+
+                return this.trades.filter(t => {
+                    const parts = t.date.split('-');
+                    const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    tDate.setHours(0,0,0,0);
+
+                    if (this.timeframe === 'days') {
+                        const todayDate = new Date(currentYear, currentMonth, currentDay);
+                        todayDate.setHours(0,0,0,0);
+                        return tDate.getTime() === todayDate.getTime();
+                    } else if (this.timeframe === 'weeks') {
+                        return tDate >= startOfWeekDate && tDate <= now;
+                    } else if (this.timeframe === 'months') {
+                        return tDate.getFullYear() === currentYear && tDate.getMonth() === currentMonth;
+                    } else if (this.timeframe === 'years') {
+                        return tDate.getFullYear() === currentYear;
+                    }
+                    return true;
+                });
+            }
+
+            renderDashboard() {
+                const activeTrades = this.getFilteredTradesForDashboard();
+
+                let calcTotalR = 0, wins = 0, losses = 0, grossWins = 0, grossLosses = 0;
+                activeTrades.forEach(t => {
+                    calcTotalR += t.r;
+                    if (t.r > 0) { wins++; grossWins += t.r; }
+                    else if (t.r < 0) { losses++; grossLosses += Math.abs(t.r); }
+                });
+
+                const totalREl = document.getElementById('metricTotalR');
+                const totalDollarEl = document.getElementById('metricTotalDollar');
+                if (totalREl) totalREl.innerText = `${calcTotalR >= 0 ? '+' : ''}${calcTotalR.toFixed(1)}R`;
+                
+                if (totalDollarEl) {
+                    if (this.settings.showCash) {
+                        const totalDollar = calcTotalR * this.settings.riskPerR;
+                        totalDollarEl.innerText = `(${totalDollar >= 0 ? '+' : ''}$${totalDollar.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})})`;
+                        totalDollarEl.classList.remove('hidden');
+                    } else {
+                        totalDollarEl.classList.add('hidden');
+                    }
+                }
+                
+                const totalTradesEl = document.getElementById('metricTotalTrades');
+                if (totalTradesEl) totalTradesEl.innerText = activeTrades.length;
+
+                const winRateEl = document.getElementById('metricWinRate');
+                if (winRateEl) winRateEl.innerText = `${activeTrades.length ? ((wins/activeTrades.length)*100).toFixed(0) : 0}%`;
+
+                const profitFactorEl = document.getElementById('metricProfitFactor');
+                if (profitFactorEl) {
+                    const pf = grossLosses === 0 ? (grossWins > 0 ? grossWins.toFixed(2) : '0.00') : (grossWins / grossLosses).toFixed(2);
+                    profitFactorEl.innerText = pf;
+                }
+
+                const metricWinsEl = document.getElementById('metricWinsCount');
+                if (metricWinsEl) metricWinsEl.innerText = wins;
+                const metricLossesEl = document.getElementById('metricLossesCount');
+                if (metricLossesEl) metricLossesEl.innerText = losses;
+
+                const winCountEl = document.getElementById('centerWinCount');
+                if (winCountEl) winCountEl.innerText = wins;
+
+                const lossCountEl = document.getElementById('centerLossCount');
+                if (lossCountEl) lossCountEl.innerText = losses;
+
+                this.renderCalendarGrid('calendarGrid', 'calendarTitle');
+            }
+
+            renderCalendar() {
+                this.renderCalendarGrid('calendarGrid', 'calendarTitle');
+            }
+
+            renderDedicatedCalendar() {
+                const container = document.getElementById('calendarViewContainer');
+                if(container && container.innerHTML.trim() === '') {
+                    container.appendChild(document.getElementById('calendarTemplate').content.cloneNode(true));
+                }
+                this.renderCalendarGrid('calendarGrid', 'calendarTitle');
+            }
+
+            renderCalendarGrid(gridId, titleId) {
+                const grid = document.getElementById(gridId);
+                const title = document.getElementById(titleId);
+                if (!grid || !title) return;
+
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+                const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                title.innerText = `${monthNames[month]} ${year}`;
+
+                grid.innerHTML = '';
+                const firstDayIndex = new Date(year, month, 1).getDay();
+                const lastDay = new Date(year, month + 1, 0).getDate();
+
+                for (let i = 0; i < firstDayIndex; i++) {
+                    grid.innerHTML += `<div class="bg-slate-900/40 rounded-xl min-h-[90px] p-2 border border-slate-800/40 opacity-30"></div>`;
+                }
+
+                for (let day = 1; day <= lastDay; day++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const dayTrades = this.trades.filter(t => t.date === dateStr);
+                    let dayR = 0;
+                    dayTrades.forEach(t => dayR += t.r);
+
+                    let bgClass = "bg-slate-900/80 border-slate-800";
+                    let textRColor = "text-slate-400";
+                    if (dayTrades.length > 0) {
+                        if (dayR > 0) {
+                            bgClass = "bg-emerald-950/30 border-emerald-500/30";
+                            textRColor = "text-emerald-400 font-bold";
+                        } else if (dayR < 0) {
+                            bgClass = "bg-rose-950/30 border-rose-500/30";
+                            textRColor = "text-rose-400 font-bold";
+                        }
+                    }
+
+                    let tradesHtml = '';
+                    dayTrades.forEach(t => {
+                        const tCol = t.r >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                        tradesHtml += `<div class="text-[10px] font-mono px-1 rounded truncate ${tCol}">${t.asset} (${t.r >= 0 ? '+' : ''}${t.r}R)</div>`;
+                    });
+
+                    grid.innerHTML += `
+                        <div onclick="tracker.openDayModal('${dateStr}')" class="${bgClass} border rounded-xl min-h-[90px] p-2 flex flex-col justify-between cursor-pointer hover:border-purple-500/50 transition group">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] text-slate-400 font-mono">${day}</span>
+                                ${dayTrades.length > 0 ? `<span class="text-[10px] font-mono ${textRColor}">${dayR >= 0 ? '+' : ''}${dayR.toFixed(1)}R</span>` : ''}
+                            </div>
+                            <div class="space-y-0.5 overflow-y-auto max-h-[50px] my-1">
+                                ${tradesHtml}
+                                ${dayTrades.length === 0 ? '<div class="flex justify-center items-center h-full"><i class="ph-bold ph-plus text-slate-600 opacity-0 group-hover:opacity-100 transition"></i></div>' : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            renderCharts() {
+                const equityCanvas = document.getElementById('equityCurveChart');
+                if (equityCanvas) {
+                    const ctx = equityCanvas.getContext('2d');
+                    let cumulative = 0;
+                    const activeTrades = this.getFilteredTradesForDashboard();
+                    const sorted = [...activeTrades].sort((a,b) => new Date(a.date) - new Date(b.date));
+                    
+                    const labels = ['Start', ...sorted.map(t => t.date)];
+                    const dataPoints = [0];
+                    
+                    sorted.forEach(t => {
+                        cumulative += t.r;
+                        dataPoints.push(cumulative);
+                    });
+
+                    if (this.equityChart) this.equityChart.destroy();
+                    this.equityChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Cumulative R',
+                                data: dataPoints,
+                                borderColor: '#38bdf8',
+                                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                fill: true,
+                                tension: 0.2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                                y: { 
+                                    grid: { 
+                                        color: (context) => context.tick.value === 0 ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.05)',
+                                        lineWidth: (context) => context.tick.value === 0 ? 2 : 1
+                                    }, 
+                                    ticks: { color: '#94a3b8', font: { size: 10 } },
+                                    grace: '10%'
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const doughnutCanvas = document.getElementById('winRateDoughnut');
+                if (doughnutCanvas) {
+                    const ctxD = doughnutCanvas.getContext('2d');
+                    const activeTrades = this.getFilteredTradesForDashboard();
+                    let wins = activeTrades.filter(t => t.r > 0).length;
+                    let losses = activeTrades.filter(t => t.r < 0).length;
+                    let breakeven = activeTrades.filter(t => t.r === 0).length;
+                    const winR = activeTrades.filter(t => t.r > 0).reduce((a, t) => a + t.r, 0);
+                    const lossR = activeTrades.filter(t => t.r < 0).reduce((a, t) => a + t.r, 0);
+
+                    if (this.doughnutChart) this.doughnutChart.destroy();
+                    this.doughnutChart = new Chart(ctxD, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Wins', 'Losses', 'Breakeven'],
+                            datasets: [{
+                                data: (wins + losses + breakeven) === 0 ? [0, 0, 1] : [wins, losses, breakeven],
+                                backgroundColor: (wins + losses + breakeven) === 0 ? ['#1e293b', '#1e293b', '#1e293b'] : ['#34d399', '#f43f5e', '#64748b'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (c) => {
+                                            const rSum = [winR, lossR, 0][c.dataIndex];
+                                            const rTxt = c.dataIndex === 2 ? '' : ` (${rSum >= 0 ? '+' : ''}${rSum.toFixed(1)}R)`;
+                                            return ` ${c.label}: ${c.parsed} trades${rTxt}`;
+                                        }
+                                    }
+                                }
+                            },
+                            cutout: '75%'
+                        }
+                    });
+                }
+            }
+
+            renderAnalytics() {
+                const primaryReturnEl = document.getElementById('anaFilterPrimaryReturn');
+                const secondaryReturnEl = document.getElementById('anaFilterSecondaryReturn');
+                const bestDayEl = document.getElementById('anaBestDay');
+                const worstDayEl = document.getElementById('anaWorstDay');
+                const bestAssetEl = document.getElementById('anaBestAsset');
+                const worstAssetEl = document.getElementById('anaWorstAsset');
+                const bestSessionEl = document.getElementById('anaBestSession');
+                const worstSessionEl = document.getElementById('anaWorstSession');
+                const tagEdgeContainer = document.getElementById('tagEdgeContainer');
+                if (!primaryReturnEl) return;
+
+                let filtered = this.trades;
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth();
+                const currentDay = now.getDate();
+                const dayOfWeek = now.getDay();
+
+                const startOfWeekDate = new Date(currentYear, currentMonth, currentDay - dayOfWeek);
+                startOfWeekDate.setHours(0,0,0,0);
+
+                if (this.analyticsRange === 'week') {
+                    filtered = this.trades.filter(t => {
+                        const parts = t.date.split('-');
+                        const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        tDate.setHours(0,0,0,0);
+                        return tDate >= startOfWeekDate && tDate <= now;
+                    });
+                } else if (this.analyticsRange === 'month') {
+                    filtered = this.trades.filter(t => {
+                        const parts = t.date.split('-');
+                        const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        return tDate.getFullYear() === currentYear && tDate.getMonth() === currentMonth;
+                    });
+                } else if (this.analyticsRange === 'year') {
+                    filtered = this.trades.filter(t => {
+                        const parts = t.date.split('-');
+                        const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        return tDate.getFullYear() === currentYear;
+                    });
+                }
+
+                [bestDayEl, worstDayEl, bestAssetEl, worstAssetEl, bestSessionEl, worstSessionEl].forEach(el => { if (el) el.innerText = 'N/A'; });
+
+                let sumR = 0;
+                filtered.forEach(t => sumR += t.r);
+                
+                let returnText = `${sumR >= 0 ? '+' : ''}${sumR.toFixed(1)}R`;
+                if (this.settings.showCash) {
+                    const dollarVal = sumR * this.settings.riskPerR;
+                    returnText += ` (${dollarVal >= 0 ? '+' : ''}$${dollarVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})})`;
+                }
+                primaryReturnEl.innerText = returnText;
+                primaryReturnEl.className = `text-2xl font-black font-mono mt-1 ${sumR >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+                secondaryReturnEl.innerText = `${filtered.length} trades`;
+
+                // Day Edge Calculation (Filtered)
+                const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const dayStats = {};
+                daysOfWeek.forEach(d => dayStats[d] = 0);
+                filtered.forEach(t => {
+                    const parts = t.date.split('-');
+                    const tDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    const dName = daysOfWeek[tDate.getDay()];
+                    dayStats[dName] += t.r;
+                });
+                const tradedDays = new Set(filtered.map(t => { const p = t.date.split('-'); return daysOfWeek[new Date(+p[0], +p[1]-1, +p[2]).getDay()]; }));
+                const sortedDays = Object.entries(dayStats).filter(([d]) => tradedDays.has(d)).sort((a,b) => b[1] - a[1]);
+                if (bestDayEl && worstDayEl && sortedDays.length > 0) {
+                    bestDayEl.innerText = `${sortedDays[0][0]} (${sortedDays[0][1] >= 0 ? '+' : ''}${sortedDays[0][1].toFixed(1)}R)`;
+                    worstDayEl.innerText = `${sortedDays[sortedDays.length-1][0]} (${sortedDays[sortedDays.length-1][1] >= 0 ? '+' : ''}${sortedDays[sortedDays.length-1][1].toFixed(1)}R)`;
+                }
+
+                // Asset Edge Calculation (Filtered)
+                const assetStats = {};
+                filtered.forEach(t => {
+                    assetStats[t.asset] = (assetStats[t.asset] || 0) + t.r;
+                });
+                const sortedAssets = Object.entries(assetStats).sort((a,b) => b[1] - a[1]);
+                if (bestAssetEl && sortedAssets.length > 0) {
+                    bestAssetEl.innerText = `${sortedAssets[0][0]} (${sortedAssets[0][1] >= 0 ? '+' : ''}${sortedAssets[0][1].toFixed(1)}R)`;
+                }
+                if (worstAssetEl && sortedAssets.length > 0) {
+                    worstAssetEl.innerText = `${sortedAssets[sortedAssets.length-1][0]} (${sortedAssets[sortedAssets.length-1][1] >= 0 ? '+' : ''}${sortedAssets[sortedAssets.length-1][1].toFixed(1)}R)`;
+                }
+
+                // Session Edge Calculation (Filtered)
+                const sessionStats = {};
+                filtered.forEach(t => {
+                    sessionStats[t.session] = (sessionStats[t.session] || 0) + t.r;
+                });
+                const sortedSessions = Object.entries(sessionStats).sort((a,b) => b[1] - a[1]);
+                if (bestSessionEl && sortedSessions.length > 0) {
+                    bestSessionEl.innerText = `${sortedSessions[0][0]} (${sortedSessions[0][1] >= 0 ? '+' : ''}${sortedSessions[0][1].toFixed(1)}R)`;
+                }
+                if (worstSessionEl && sortedSessions.length > 0) {
+                    worstSessionEl.innerText = `${sortedSessions[sortedSessions.length-1][0]} (${sortedSessions[sortedSessions.length-1][1] >= 0 ? '+' : ''}${sortedSessions[sortedSessions.length-1][1].toFixed(1)}R)`;
+                }
+
+                // Tag & Psychology Edge Breakdown (Filtered)
+                if (tagEdgeContainer) {
+                    tagEdgeContainer.innerHTML = '';
+                    const tagStats = {};
+                    this.settings.tags.forEach(tag => {
+                        tagStats[tag] = { count: 0, totalR: 0 };
+                    });
+
+                    filtered.forEach(t => {
+                        if (t.tags && Array.isArray(t.tags)) {
+                            t.tags.forEach(tag => {
+                                if (!tagStats[tag]) tagStats[tag] = { count: 0, totalR: 0 };
+                                tagStats[tag].count++;
+                                tagStats[tag].totalR += t.r;
+                            });
+                        }
+                    });
+
+                    for (const [tag, stats] of Object.entries(tagStats)) {
+                        const col = stats.totalR >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                        const dollarTag = stats.totalR * this.settings.riskPerR;
+                        tagEdgeContainer.innerHTML += `
+                            <div class="dashboard-card p-4 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <div>
+                                    <span class="font-bold text-slate-200 block">${tag}</span>
+                                    <span class="text-[11px] text-slate-400">${stats.count} trades logged</span>
+                                </div>
+                                <div class="text-right font-mono">
+                                    <div class="font-bold ${col}">${stats.totalR >= 0 ? '+' : ''}${stats.totalR.toFixed(1)}R</div>
+                                    ${this.settings.showCash ? `<div class="text-[10px] text-slate-400">${dollarTag >= 0 ? '+' : ''}$${dollarTag.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            }
+
+            changeMonth(direction) {
+                this.currentDate.setMonth(this.currentDate.getMonth() + direction);
+                this.renderCalendar();
+            }
+
+            getLogGroupInfo(dateStr) {
+                const pad = n => String(n).padStart(2, '0');
+                const fmt = dt => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return { key: 'u', label: 'No date', sort: '' };
+                const [y, m, d] = dateStr.split('-').map(Number);
+                const dt = new Date(y, m - 1, d);
+                const tf = this.timeframe;
+                if (tf === 'days') {
+                    return { key: `d:${dateStr}`, sort: dateStr,
+                        label: dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }) };
+                }
+                if (tf === 'weeks') {
+                    const start = new Date(y, m - 1, d - ((dt.getDay() + 6) % 7));
+                    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+                    return { key: `w:${fmt(start)}`, sort: fmt(start),
+                        label: `Week of ${start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` };
+                }
+                if (tf === 'years') {
+                    return { key: `y:${y}`, sort: String(y), label: String(y) };
+                }
+                // 'all' and 'months' group by month
+                return { key: `m:${y}-${pad(m)}`, sort: `${y}-${pad(m)}`,
+                    label: dt.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) };
+            }
+
+            toggleLogGroup(key) {
+                this.logGroupOpen = this.logGroupOpen || {};
+                this.logGroupOpen[key] = !this.logGroupOpen[key];
+                this.renderTradeLog();
+            }
+
+            renderTradeLog() {
+                const container = document.getElementById('tradeLogContainer');
+                if(!container) return;
+                container.innerHTML = '';
+                if (this.trades.length === 0) {
+                    container.innerHTML = `<div class="text-center py-12 text-slate-500">No trades logged yet.</div>`;
+                    return;
+                }
+
+                const fmtR = (r) => `${r >= 0 ? '+' : ''}${Math.round(r * 100) / 100}R`;
+                const fmtCash = (r) => {
+                    const v = r * this.settings.riskPerR;
+                    return `${v >= 0 ? '+' : '-'}$${Math.abs(v).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                };
+
+                // Group trades by the selected timeframe
+                const groups = {};
+                this.trades.forEach(t => {
+                    const info = this.getLogGroupInfo(t.date);
+                    if (!groups[info.key]) groups[info.key] = { ...info, trades: [] };
+                    groups[info.key].trades.push(t);
+                });
+                const ordered = Object.values(groups).sort((a, b) => b.sort.localeCompare(a.sort));
+
+                this.logGroupOpen = this.logGroupOpen || {};
+                let html = '';
+                ordered.forEach((g, idx) => {
+                    if (!(g.key in this.logGroupOpen)) this.logGroupOpen[g.key] = (idx === 0); // latest group open by default
+                    const isOpen = this.logGroupOpen[g.key];
+
+                    g.trades.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id - a.id));
+                    const net = g.trades.reduce((acc, t) => acc + t.r, 0);
+                    const wins = g.trades.filter(t => t.r > 0).length;
+                    const losses = g.trades.filter(t => t.r < 0).length;
+                    const winRate = (wins + losses) > 0 ? Math.round((wins / (wins + losses)) * 100) : null;
+                    const netColor = net > 0 ? 'text-emerald-400' : (net < 0 ? 'text-rose-400' : 'text-slate-300');
+                    let netText = fmtR(net);
+                    if (this.settings.showCash) netText += ` / ${fmtCash(net)}`;
+
+                    let rows = '';
+                    if (isOpen) {
+                        g.trades.forEach(t => {
+                            let tagsHtml = '';
+                            if (t.tags && t.tags.length > 0) {
+                                t.tags.forEach(tag => {
+                                    tagsHtml += `<span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-950/60 text-purple-300 border border-purple-500/30">${tag}</span>`;
+                                });
+                            }
+                            let returnDisplay = fmtR(t.r);
+                            if (this.settings.showCash) returnDisplay += ` / ${fmtCash(t.r)}`;
+
+                            rows += `
+                                <div onclick="tracker.openReplayModal(${t.id})" class="dashboard-card p-4 rounded-xl flex justify-between items-center cursor-pointer hover:border-purple-500/40 transition">
+                                    <div class="space-y-1">
+                                        <div class="flex items-center gap-3">
+                                            <span class="font-bold text-slate-200">${t.date}</span>
+                                            <span class="text-purple-400 font-mono">${t.asset} (${t.session})</span>
+                                        </div>
+                                        <div class="flex flex-wrap gap-1">${tagsHtml}</div>
+                                        <p class="text-xs text-slate-400">${t.notes || 'No notes'}</p>
+                                    </div>
+                                    <div class="flex items-center gap-4 text-right">
+                                        <div class="font-mono font-bold ${t.r >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
+                                            <div>${returnDisplay}</div>
+                                        </div>
+                                        <button onclick="event.stopPropagation(); tracker.deleteTrade(${t.id})" class="text-slate-500 hover:text-rose-400 p-1"><i class="ph-bold ph-trash"></i></button>
+                                    </div>
+                                </div>`;
+                        });
+                    }
+
+                    html += `
+                        <div class="space-y-2">
+                            <button onclick="tracker.toggleLogGroup('${g.key}')" class="dashboard-card w-full px-5 py-4 rounded-xl flex items-center justify-between hover:border-purple-500/40 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <i class="ph-bold ph-caret-down text-slate-400 transition-transform ${isOpen ? '' : '-rotate-90'}"></i>
+                                    <span class="font-bold text-slate-100">${g.label}</span>
+                                    <span class="text-[11px] text-slate-500">${g.trades.length} trade${g.trades.length === 1 ? '' : 's'}${winRate !== null ? ` · ${winRate}% win` : ''}</span>
+                                </div>
+                                <span class="font-mono font-bold ${netColor}">${netText}</span>
+                            </button>
+                            ${isOpen ? `<div class="space-y-2 pl-4 border-l border-slate-800/80 ml-3">${rows}</div>` : ''}
+                        </div>`;
+                });
+                container.innerHTML = html;
+            }
+
+            openAddTradeModal(prefillDate) { 
+                this.editingTradeId = null;
+                this.selectedTagsForNewTrade = [];
+                this.populateDropdowns();
+                this.renderTagSelector();
+                const form = document.querySelector('#addTradeModal form');
+                if (form) form.reset();
+                document.getElementById('addTradeTitle').innerText = 'Add New Trade';
+                document.getElementById('tradeSubmitBtn').innerText = 'Save Trade';
+                if (typeof prefillDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(prefillDate)) {
+                    document.getElementById('tradeDate').value = prefillDate;
+                }
+                document.getElementById('addTradeModal').classList.remove('hidden'); 
+            }
+
+            openEditTrade(id) {
+                const t = this.trades.find(x => x.id === id);
+                if (!t) return;
+                this.editingTradeId = id;
+                this.selectedTagsForNewTrade = Array.isArray(t.tags) ? [...t.tags] : [];
+                this.populateDropdowns();
+                this.renderTagSelector();
+                const setSelect = (selId, val) => {
+                    const sel = document.getElementById(selId);
+                    if (!sel) return;
+                    if (val && ![...sel.options].some(o => o.value === val)) {
+                        const opt = document.createElement('option');
+                        opt.value = val; opt.textContent = val;
+                        sel.appendChild(opt);
+                    }
+                    sel.value = val;
+                };
+                setSelect('tradeAsset', t.asset);
+                setSelect('tradeSession', t.session);
+                document.getElementById('tradeDate').value = t.date;
+                document.getElementById('tradeR').value = String(t.r);
+                document.getElementById('tradeImage').value = t.image || '';
+                document.getElementById('tradeNotes').value = t.notes || '';
+                document.getElementById('addTradeTitle').innerText = 'Edit Trade';
+                document.getElementById('tradeSubmitBtn').innerText = 'Update Trade';
+                this.closeReplayModal();
+                document.getElementById('addTradeModal').classList.remove('hidden');
+            }
+
+            editCurrentReplayTrade() {
+                if (this.replayTradeId !== undefined && this.replayTradeId !== null) this.openEditTrade(this.replayTradeId);
+            }
+
+            closeAddTradeModal() { 
+                this.editingTradeId = null;
+                document.getElementById('addTradeModal').classList.add('hidden'); 
+            }
+
+            openDayModal(dateStr) {
+                this.activeDay = dateStr;
+                this.renderDayModal();
+                document.getElementById('dayModal').classList.remove('hidden');
+            }
+
+            closeDayModal() {
+                this.activeDay = null;
+                document.getElementById('dayModal').classList.add('hidden');
+            }
+
+            renderDayModal() {
+                if (!this.activeDay) return;
+                const dateStr = this.activeDay;
+                const [y, m, d] = dateStr.split('-').map(Number);
+                document.getElementById('dayModalTitle').innerText = new Date(y, m - 1, d)
+                    .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+                const dayTrades = this.trades.filter(t => t.date === dateStr).sort((a, b) => a.id - b.id);
+                const net = dayTrades.reduce((acc, t) => acc + t.r, 0);
+                const fmtR = (r) => `${r >= 0 ? '+' : ''}${Math.round(r * 100) / 100}R`;
+                let summary = dayTrades.length === 0 ? 'No trades logged' : `${dayTrades.length} trade${dayTrades.length === 1 ? '' : 's'} · net ${fmtR(net)}`;
+                if (dayTrades.length > 0 && this.settings.showCash) {
+                    const v = net * this.settings.riskPerR;
+                    summary += ` / ${v >= 0 ? '+' : '-'}$${Math.abs(v).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                }
+                document.getElementById('dayModalSummary').innerText = summary;
+
+                const list = document.getElementById('dayModalList');
+                if (dayTrades.length === 0) {
+                    list.innerHTML = `<div class="text-center text-slate-500 text-xs py-6">Nothing logged for this day yet.</div>`;
+                    return;
+                }
+                list.innerHTML = dayTrades.map(t => {
+                    const tags = (t.tags || []).map(tag => `<span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-950/60 text-purple-300 border border-purple-500/30">${tag}</span>`).join('');
+                    return `
+                        <div onclick="tracker.openReplayModal(${t.id})" class="bg-slate-950 border border-slate-800 hover:border-purple-500/40 rounded-xl p-3 flex justify-between items-center gap-3 cursor-pointer transition">
+                            <div class="min-w-0 space-y-1">
+                                <div class="font-mono text-sm text-purple-400">${t.asset} <span class="text-slate-500">(${t.session})</span></div>
+                                ${tags ? `<div class="flex flex-wrap gap-1">${tags}</div>` : ''}
+                                <p class="text-[11px] text-slate-400 truncate">${t.notes || 'No notes'}</p>
+                            </div>
+                            <span class="font-mono font-bold text-sm shrink-0 ${t.r >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${fmtR(t.r)}</span>
+                        </div>`;
+                }).join('');
+            }
+            
+            openSettingsModal() { 
+                document.getElementById('settingDisplayName').value = this.getDisplayName();
+                document.getElementById('settingAccountSize').value = this.settings.accountSize;
+                document.getElementById('settingRiskPerR').value = this.settings.riskPerR;
+                document.getElementById('settingShowCash').checked = this.settings.showCash;
+                document.getElementById('settingCustomAssets').value = this.settings.assets.join(', ');
+                document.getElementById('settingCustomSessions').value = this.settings.sessions.join(', ');
+                this.renderSettingsTagList();
+                document.getElementById('settingsModal').classList.remove('hidden'); 
+            }
+            closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
+
+            openReplayModal(id) {
+                const trade = this.trades.find(t => t.id === id);
+                if (!trade) return;
+                this.replayTradeId = id;
+
+                document.getElementById('replayTitle').innerText = `Trade Replay #${trade.id}`;
+                const badge = document.getElementById('replayBadge');
+                badge.innerText = `${trade.r >= 0 ? '+' : ''}${trade.r}R`;
+                badge.className = `text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${trade.r >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`;
+
+                document.getElementById('replayDate').innerText = trade.date;
+                document.getElementById('replayAsset').innerText = trade.asset;
+                document.getElementById('replaySession').innerText = trade.session;
+                
+                let returnStr = `${trade.r >= 0 ? '+' : ''}${trade.r}R`;
+                if (this.settings.showCash) {
+                    const dVal = trade.r * this.settings.riskPerR;
+                    returnStr += ` (${dVal >= 0 ? '+' : ''}$${dVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})})`;
+                }
+                const retEl = document.getElementById('replayReturn');
+                retEl.innerText = returnStr;
+                retEl.className = `font-mono font-bold ${trade.r >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+                const img = document.getElementById('replayImage');
+                const noImg = document.getElementById('replayNoImage');
+                if (trade.image && trade.image.trim() !== '') {
+                    img.src = trade.image;
+                    img.classList.remove('hidden');
+                    noImg.classList.add('hidden');
+                } else {
+                    img.classList.add('hidden');
+                    noImg.classList.remove('hidden');
+                }
+
+                document.getElementById('replayNotes').innerText = trade.notes || 'No strategy notes provided.';
+
+                const tagsContainer = document.getElementById('replayTags');
+                tagsContainer.innerHTML = '';
+                if (trade.tags && trade.tags.length > 0) {
+                    trade.tags.forEach(tag => {
+                        tagsContainer.innerHTML += `<span class="text-[10px] px-2.5 py-1 rounded-full bg-purple-950/60 text-purple-300 border border-purple-500/30 font-semibold">${tag}</span>`;
+                    });
+                } else {
+                    tagsContainer.innerHTML = `<span class="text-slate-500 text-[11px]">No tags assigned</span>`;
+                }
+
+                document.getElementById('tradeReplayModal').classList.remove('hidden');
+            }
+
+            closeReplayModal() {
+                document.getElementById('tradeReplayModal').classList.add('hidden');
+            }
+
+            populateDropdowns() {
+                const assetSelect = document.getElementById('tradeAsset');
+                if (assetSelect) {
+                    assetSelect.innerHTML = this.settings.assets.map(a => `<option value="${a}">${a}</option>`).join('');
+                }
+                const sessionSelect = document.getElementById('tradeSession');
+                if (sessionSelect) {
+                    sessionSelect.innerHTML = this.settings.sessions.map(s => `<option value="${s}">${s}</option>`).join('');
+                }
+            }
+
+            renderTagSelector() {
+                const container = document.getElementById('tradeTagSelector');
+                if (!container) return;
+                container.innerHTML = '';
+                const allTags = [...new Set([...this.settings.tags, ...this.selectedTagsForNewTrade])];
+                allTags.forEach(tag => {
+                    const isSelected = this.selectedTagsForNewTrade.includes(tag);
+                    const btnClass = isSelected 
+                        ? "px-3 py-1.5 rounded-xl bg-purple-600 text-white font-semibold transition shadow" 
+                        : "px-3 py-1.5 rounded-xl bg-slate-950 text-slate-400 border border-slate-800 hover:text-white transition";
+                    container.innerHTML += `<button type="button" onclick="tracker.toggleTagSelection('${tag}')" class="${btnClass}">${tag}</button>`;
+                });
+            }
+
+            toggleTagSelection(tag) {
+                if (this.selectedTagsForNewTrade.includes(tag)) {
+                    this.selectedTagsForNewTrade = this.selectedTagsForNewTrade.filter(t => t !== tag);
+                } else {
+                    this.selectedTagsForNewTrade.push(tag);
+                }
+                this.renderTagSelector();
+            }
+
+            renderSettingsTagList() {
+                const container = document.getElementById('settingsTagList');
+                if (!container) return;
+                container.innerHTML = '';
+                this.settings.tags.forEach(tag => {
+                    container.innerHTML += `
+                        <div class="flex items-center justify-between bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+                            <span class="text-slate-200 font-medium">${tag}</span>
+                            <button type="button" onclick="tracker.removeTag('${tag}')" class="text-slate-500 hover:text-rose-400"><i class="ph-bold ph-x"></i></button>
+                        </div>
+                    `;
+                });
+            }
+
+            addNewTag() {
+                const input = document.getElementById('newTagInput');
+                const val = input.value.trim();
+                if (val && !this.settings.tags.includes(val)) {
+                    this.settings.tags.push(val);
+                    input.value = '';
+                    this.renderSettingsTagList();
+                }
+            }
+
+            removeTag(tag) {
+                this.settings.tags = this.settings.tags.filter(t => t !== tag);
+                this.renderSettingsTagList();
+            }
+
+            async saveSettings() {
+                const accSize = document.getElementById('settingAccountSize').value;
+                const risk = document.getElementById('settingRiskPerR').value;
+                const showCash = document.getElementById('settingShowCash').checked;
+                const assets = document.getElementById('settingCustomAssets').value.split(',').map(s => s.trim()).filter(Boolean);
+                const sessions = document.getElementById('settingCustomSessions').value.split(',').map(s => s.trim()).filter(Boolean);
+                
+                this.settings.accountSize = parseFloat(accSize);
+                this.settings.riskPerR = parseFloat(risk);
+                this.settings.showCash = showCash;
+                if (assets.length > 0) this.settings.assets = assets;
+                if (sessions.length > 0) this.settings.sessions = sessions;
+                
+                const newName = (document.getElementById('settingDisplayName').value || '').trim();
+                if (supabaseClient && this.user && newName !== this.getDisplayName()) {
+                    const { data: upd, error: nameErr } = await supabaseClient.auth.updateUser({ data: { full_name: newName } });
+                    if (nameErr) alert('Could not save name: ' + nameErr.message);
+                    else if (upd && upd.user) { this.user = upd.user; this.updateUserBadge(); }
+                }
+
+                this.closeSettingsModal();
+                this.renderDashboard();
+                this.renderCharts();
+                this.renderAnalytics();
+                if (this.currentPage === 'log') this.renderTradeLog();
+                alert('Settings saved successfully!');
+            }
+        }
+
+        const tracker = new RTradeTracker();
+    </script>
+</body>
+</html>
