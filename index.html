@@ -492,8 +492,9 @@
                 <button onclick="tracker.closeAddTradeModal()" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
             </div>
             <form onsubmit="tracker.handleTradeSubmit(event)" class="space-y-3 text-xs">
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <input type="date" id="tradeDate" required class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200">
+                    <label class="flex flex-col gap-1 text-[10px] text-slate-400">Trade time (optional)<input type="time" id="tradeTime" aria-label="Trade time (optional)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-slate-200"></label>
                     <input type="text" id="tradeR" placeholder="Return in R (+2.5 or -1)" required class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 font-mono">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -508,6 +509,10 @@
                     <label class="block text-slate-400 font-semibold mb-1.5">Trade Tags & Psychology</label>
                     <div id="tradeTagSelector" class="flex flex-wrap gap-2">
                         <!-- Populated dynamically -->
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <input id="tradeNewTagInput" type="text" maxlength="40" placeholder="Create and add a custom tag..." class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-200">
+                        <button type="button" onclick="tracker.addTradeTag()" class="px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition">Add tag</button>
                     </div>
                 </div>
                 <div>
@@ -968,6 +973,7 @@
                 this.doughnutChart = null;
                 this.selectedTagsForNewTrade = [];
                 this.goalFollowedTradeIds = this.loadGoalFollowedTrades();
+                this.tradeTimes = {};
                 
                 this.applySavedTheme();
                 this.initAuth();
@@ -1082,6 +1088,27 @@
                 else badge.className = 'text-[10px] text-slate-400 truncate max-w-[120px]';
             }
 
+            loadUserPreferences() {
+                let prefs = this.user?.user_metadata?.binj_tracker_preferences || null;
+                if (!prefs) {
+                    try { prefs = JSON.parse(localStorage.getItem('binj_tracker_preferences_' + (this.user?.id || 'guest')) || 'null'); } catch (e) {}
+                }
+                if (prefs?.settings) this.settings = { ...this.settings, ...prefs.settings };
+                this.tradeTimes = prefs?.tradeTimes || {};
+                this.populateDropdowns();
+            }
+
+            async saveUserPreferences() {
+                const prefs = { settings: this.settings, tradeTimes: this.tradeTimes || {} };
+                try { localStorage.setItem('binj_tracker_preferences_' + (this.user?.id || 'guest'), JSON.stringify(prefs)); } catch (e) {}
+                if (!this.user || !supabaseClient) return;
+                const { data, error } = await supabaseClient.auth.updateUser({
+                    data: { ...(this.user.user_metadata || {}), binj_tracker_preferences: prefs }
+                });
+                if (!error && data?.user) this.user = data.user;
+                else if (error) console.error('Could not sync tracker preferences:', error.message);
+            }
+
             async initAuth() {
                 this.startQuoteRotation();
                 if (!supabaseClient) return;
@@ -1089,6 +1116,7 @@
                 const { data } = await supabaseClient.auth.getSession();
                 if (data && data.session) {
                     this.user = data.session.user;
+                    this.loadUserPreferences();
                     this.hydrateGoalState();
                     document.getElementById('authModal').classList.add('hidden');
                     this.updateUserBadge();
@@ -1100,6 +1128,7 @@
                 supabaseClient.auth.onAuthStateChange(async (event, session) => {
                     if (session) {
                         this.user = session.user;
+                        this.loadUserPreferences();
                         this.hydrateGoalState();
                         document.getElementById('authModal').classList.add('hidden');
                         this.updateUserBadge();
@@ -1163,6 +1192,7 @@
             async handleTradeSubmit(e) {
                 e.preventDefault();
                 const date = document.getElementById('tradeDate').value;
+                const tradeTime = document.getElementById('tradeTime').value;
                 let rawR = document.getElementById('tradeR').value.replace('R','').replace('+','').trim();
                 let rVal = parseFloat(rawR);
                 const asset = document.getElementById('tradeAsset').value;
@@ -1187,13 +1217,19 @@
                     const { data, error } = await supabaseClient.from('trades').update(payload).eq('id', editedId).select();
                     if (error) { alert(error.message); return; }
                     if (!data || data.length === 0) { alert('Could not update this trade.'); return; }
+                    this.tradeTimes[String(editedId)] = tradeTime;
+                    await this.saveUserPreferences();
                     this.closeAddTradeModal();
                     await this.fetchTradesFromSupabase();
                     this.openReplayModal(editedId);
                 } else {
-                    const { error } = await supabaseClient.from('trades').insert([{ user_id: this.user.id, ...payload }]).select();
+                    const { data, error } = await supabaseClient.from('trades').insert([{ user_id: this.user.id, ...payload }]).select();
                     if (error) alert(error.message);
                     else {
+                        if (data && data[0]) {
+                            this.tradeTimes[String(data[0].id)] = tradeTime;
+                            await this.saveUserPreferences();
+                        }
                         this.closeAddTradeModal();
                         await this.fetchTradesFromSupabase();
                     }
@@ -1613,7 +1649,11 @@
 
                 const totalREl = document.getElementById('metricTotalR');
                 const totalDollarEl = document.getElementById('metricTotalDollar');
-                if (totalREl) totalREl.innerText = `${calcTotalR >= 0 ? '+' : ''}${calcTotalR.toFixed(1)}R`;
+                if (totalREl) {
+                    totalREl.innerText = `${calcTotalR >= 0 ? '+' : ''}${calcTotalR.toFixed(1)}R`;
+                    totalREl.classList.toggle('text-rose-400', calcTotalR < 0);
+                    totalREl.classList.toggle('text-emerald-400', calcTotalR >= 0);
+                }
                 
                 if (totalDollarEl) {
                     if (this.settings.showCash) {
@@ -1954,7 +1994,7 @@
                         tagEdgeContainer.innerHTML += `
                             <div class="dashboard-card p-4 rounded-xl border border-slate-800 flex justify-between items-center">
                                 <div>
-                                    <span class="font-bold text-slate-200 block">${tag}</span>
+                                    <span class="font-bold text-slate-200 block">${this.escapeHtml(tag)}</span>
                                     <span class="text-[11px] text-slate-400">${stats.count} trades logged</span>
                                 </div>
                                 <div class="text-right font-mono">
@@ -2048,7 +2088,7 @@
                             let tagsHtml = '';
                             if (t.tags && t.tags.length > 0) {
                                 t.tags.forEach(tag => {
-                                    tagsHtml += `<span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-950/60 text-purple-300 border border-purple-500/30">${tag}</span>`;
+                                    tagsHtml += `<span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-950/60 text-purple-300 border border-purple-500/30">${this.escapeHtml(tag)}</span>`;
                                 });
                             }
                             let returnDisplay = fmtR(t.r);
@@ -2058,7 +2098,7 @@
                                 <div onclick="tracker.openReplayModal(${t.id})" class="dashboard-card p-4 rounded-xl flex justify-between items-center cursor-pointer hover:border-purple-500/40 transition">
                                     <div class="space-y-1">
                                         <div class="flex items-center gap-3">
-                                            <span class="font-bold text-slate-200">${t.date}</span>
+                                            <span class="font-bold text-slate-200">${t.date}${this.tradeTimes[String(t.id)] ? ' · ' + this.tradeTimes[String(t.id)] : ''}</span>
                                             <span class="text-purple-400 font-mono">${t.asset} (${t.session})</span>
                                         </div>
                                         <div class="flex flex-wrap gap-1">${tagsHtml}</div>
@@ -2128,6 +2168,7 @@
                 setSelect('tradeAsset', t.asset);
                 setSelect('tradeSession', t.session);
                 document.getElementById('tradeDate').value = t.date;
+                document.getElementById('tradeTime').value = this.tradeTimes[String(t.id)] || '';
                 document.getElementById('tradeR').value = String(t.r);
                 document.getElementById('tradeImage').value = t.image || '';
                 document.getElementById('tradeNotes').value = t.notes || '';
@@ -2180,7 +2221,7 @@
                     return;
                 }
                 list.innerHTML = dayTrades.map(t => {
-                    const tags = (t.tags || []).map(tag => `<span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-950/60 text-purple-300 border border-purple-500/30">${tag}</span>`).join('');
+                    const tags = (t.tags || []).map(tag => `<span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-950/60 text-purple-300 border border-purple-500/30">${this.escapeHtml(tag)}</span>`).join('');
                     return `
                         <div onclick="tracker.openReplayModal(${t.id})" class="bg-slate-950 border border-slate-800 hover:border-purple-500/40 rounded-xl p-3 flex justify-between items-center gap-3 cursor-pointer transition">
                             <div class="min-w-0 space-y-1">
@@ -2215,7 +2256,7 @@
                 badge.innerText = `${trade.r >= 0 ? '+' : ''}${trade.r}R`;
                 badge.className = `text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${trade.r >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`;
 
-                document.getElementById('replayDate').innerText = trade.date;
+                document.getElementById('replayDate').innerText = trade.date + (this.tradeTimes[String(trade.id)] ? ' · ' + this.tradeTimes[String(trade.id)] : '');
                 document.getElementById('replayAsset').innerText = trade.asset;
                 document.getElementById('replaySession').innerText = trade.session;
                 
@@ -2247,7 +2288,7 @@
                 tagsContainer.innerHTML = '';
                 if (trade.tags && trade.tags.length > 0) {
                     trade.tags.forEach(tag => {
-                        tagsContainer.innerHTML += `<span class="text-[10px] px-2.5 py-1 rounded-full bg-purple-950/60 text-purple-300 border border-purple-500/30 font-semibold">${tag}</span>`;
+                        tagsContainer.innerHTML += `<span class="text-[10px] px-2.5 py-1 rounded-full bg-purple-950/60 text-purple-300 border border-purple-500/30 font-semibold">${this.escapeHtml(tag)}</span>`;
                     });
                 } else {
                     tagsContainer.innerHTML = `<span class="text-slate-500 text-[11px]">No tags assigned</span>`;
@@ -2271,17 +2312,24 @@
                 }
             }
 
+            escapeHtml(value) {
+                return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+            }
+
             renderTagSelector() {
                 const container = document.getElementById('tradeTagSelector');
                 if (!container) return;
                 container.innerHTML = '';
                 const allTags = [...new Set([...this.settings.tags, ...this.selectedTagsForNewTrade])];
                 allTags.forEach(tag => {
-                    const isSelected = this.selectedTagsForNewTrade.includes(tag);
-                    const btnClass = isSelected 
-                        ? "px-3 py-1.5 rounded-xl bg-purple-600 text-white font-semibold transition shadow" 
-                        : "px-3 py-1.5 rounded-xl bg-slate-950 text-slate-400 border border-slate-800 hover:text-white transition";
-                    container.innerHTML += `<button type="button" onclick="tracker.toggleTagSelection('${tag}')" class="${btnClass}">${tag}</button>`;
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = this.selectedTagsForNewTrade.includes(tag)
+                        ? 'px-3 py-1.5 rounded-xl bg-purple-600 text-white font-semibold transition shadow'
+                        : 'px-3 py-1.5 rounded-xl bg-slate-950 text-slate-400 border border-slate-800 hover:text-white transition';
+                    button.textContent = tag;
+                    button.addEventListener('click', () => this.toggleTagSelection(tag));
+                    container.appendChild(button);
                 });
             }
 
@@ -2299,12 +2347,19 @@
                 if (!container) return;
                 container.innerHTML = '';
                 this.settings.tags.forEach(tag => {
-                    container.innerHTML += `
-                        <div class="flex items-center justify-between bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
-                            <span class="text-slate-200 font-medium">${tag}</span>
-                            <button type="button" onclick="tracker.removeTag('${tag}')" class="text-slate-500 hover:text-rose-400"><i class="ph-bold ph-x"></i></button>
-                        </div>
-                    `;
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center justify-between bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800';
+                    const label = document.createElement('span');
+                    label.className = 'text-slate-200 font-medium';
+                    label.textContent = tag;
+                    const remove = document.createElement('button');
+                    remove.type = 'button';
+                    remove.className = 'text-slate-500 hover:text-rose-400';
+                    remove.setAttribute('aria-label', 'Remove ' + tag);
+                    remove.innerHTML = '<i class="ph-bold ph-x"></i>';
+                    remove.addEventListener('click', () => this.removeTag(tag));
+                    item.append(label, remove);
+                    container.appendChild(item);
                 });
             }
 
@@ -2315,12 +2370,27 @@
                     this.settings.tags.push(val);
                     input.value = '';
                     this.renderSettingsTagList();
+                    this.renderTagSelector();
+                    this.saveUserPreferences();
                 }
             }
 
             removeTag(tag) {
                 this.settings.tags = this.settings.tags.filter(t => t !== tag);
                 this.renderSettingsTagList();
+                this.renderTagSelector();
+                this.saveUserPreferences();
+            }
+
+            addTradeTag() {
+                const input = document.getElementById('tradeNewTagInput');
+                const tag = (input?.value || '').trim();
+                if (!tag) return;
+                if (!this.settings.tags.includes(tag)) this.settings.tags.push(tag);
+                if (!this.selectedTagsForNewTrade.includes(tag)) this.selectedTagsForNewTrade.push(tag);
+                input.value = '';
+                this.renderTagSelector();
+                this.saveUserPreferences();
             }
 
             async saveSettings() {
@@ -2335,10 +2405,11 @@
                 this.settings.showCash = showCash;
                 if (assets.length > 0) this.settings.assets = assets;
                 if (sessions.length > 0) this.settings.sessions = sessions;
+                await this.saveUserPreferences();
                 
                 const newName = (document.getElementById('settingDisplayName').value || '').trim();
                 if (supabaseClient && this.user && newName !== this.getDisplayName()) {
-                    const { data: upd, error: nameErr } = await supabaseClient.auth.updateUser({ data: { full_name: newName } });
+                    const { data: upd, error: nameErr } = await supabaseClient.auth.updateUser({ data: { ...(this.user.user_metadata || {}), full_name: newName } });
                     if (nameErr) alert('Could not save name: ' + nameErr.message);
                     else if (upd && upd.user) { this.user = upd.user; this.updateUserBadge(); }
                 }
